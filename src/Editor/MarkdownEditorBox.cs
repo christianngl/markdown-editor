@@ -60,7 +60,7 @@ namespace MarkdownEditor.Editor
         public event EventHandler TextEdited;
 
         /// <summary>Datei per Drag &amp; Drop auf den Editor gezogen.</summary>
-        public event Action<string> FileDropped;
+        public event Action<string[]> FileDropped;
 
         public MarkdownEditorBox()
         {
@@ -623,8 +623,10 @@ namespace MarkdownEditor.Editor
             e.Handled = true;
             if (!e.Data.GetDataPresent(DataFormats.FileDrop)) return;
             var files = e.Data.GetData(DataFormats.FileDrop) as string[];
-            Action<string> h = FileDropped;
-            if (files != null && files.Length > 0 && h != null) h(files[0]);
+            TextPointer at = GetPositionFromPoint(e.GetPosition(this), true);
+            if (at != null) CaretPosition = at;   // Bilder landen dort, wo sie abgelegt wurden
+            Action<string[]> h = FileDropped;
+            if (files != null && files.Length > 0 && h != null) h(files);
         }
 
         public void EnsureCaretVisible()

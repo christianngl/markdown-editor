@@ -41,6 +41,33 @@ namespace MarkdownEditor.Markdown
             return t;
         }
 
+        /// <summary>Fügt an Position <paramref name="at"/> eine leere Zeile ein (0 = vor der Kopfzeile).</summary>
+        public void InsertRow(int at)
+        {
+            var row = new List<string>();
+            for (int c = 0; c < ColumnCount; c++) row.Add("");
+            Rows.Insert(Math.Max(0, Math.Min(at, Rows.Count)), row);
+        }
+
+        public void RemoveRow(int at)
+        {
+            if (Rows.Count > 1 && at >= 0 && at < Rows.Count) Rows.RemoveAt(at);
+        }
+
+        public void InsertColumn(int at)
+        {
+            at = Math.Max(0, Math.Min(at, ColumnCount));
+            Aligns.Insert(at, ColumnAlign.None);
+            foreach (List<string> row in Rows) row.Insert(Math.Min(at, row.Count), "");
+        }
+
+        public void RemoveColumn(int at)
+        {
+            if (ColumnCount <= 1 || at < 0 || at >= ColumnCount) return;
+            Aligns.RemoveAt(at);
+            foreach (List<string> row in Rows) if (at < row.Count) row.RemoveAt(at);
+        }
+
         /// <summary>lines[0] = Kopfzeile, lines[1] = Trennzeile, Rest = Daten.</summary>
         public static MarkdownTable Parse(IList<string> lines)
         {

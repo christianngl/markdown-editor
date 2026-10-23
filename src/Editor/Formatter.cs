@@ -397,6 +397,99 @@ namespace MarkdownEditor.Editor
             }
         }
 
+        /// <summary>Zeile (0 = Kopfzeile) und Spalte der Tabellenzelle am Cursor.</summary>
+        public static bool TableCellAt(MarkdownEditorBox ed, out int row, out int col)
+        {
+            TextPos caret = ed.CaretPos();
+            int start, end;
+            row = col = 0;
+            if (!FindTable(ed, caret.Line, out start, out end)) return false;
+            row = Math.Max(0, caret.Line - start - 1);   // Trennzeile zählt zur Kopfzeile
+            string line = ed.LineText(caret.Line);
+            int upto = Math.Min(caret.Col, line.Length);
+            for (int i = 0; i < upto; i++)
+            {
+                if (line[i] == '\\') i++;
+                else if (line[i] == '|') col++;
+            }
+            if (line.TrimStart().StartsWith("|") && col > 0) col--;
+            return true;
+        }
+
+        /// <summary>
+        /// Ändert die Tabelle am Cursor über das Tabellenmodell und schreibt sie ausgerichtet zurück.
+        /// <paramref name="change"/> liefert die Zeile, in die der Cursor danach gesetzt wird.
+        /// </summary>
+        public static void ModifyTable(MarkdownEditorBox ed, Func<MarkdownTable, int> change)
+        {
+            int start, end;
+            if (!FindTable(ed, ed.CaretPos().Line, out start, out end)) return;
+            MarkdownTable table = MarkdownTable.Parse(ed.GetLines().GetRange(start, end - start + 1));
+            int row = change(table);
+            List<string> md = table.ToMarkdownLines();
+            ed.ReplaceLines(start, end, md);
+            int line = start + (row <= 0 ? 0 : row + 1);
+            ed.SetCaret(new TextPos(Math.Min(line, start + md.Count - 1), 0));
+        }
+
+        // ---------------------------------------------------------------- Links
+
+        static readonly Regex MdLinkRx = new Regex(@"(?<!!)\[([^\]]*)\]\(([^)\s]*)(\s+""[^""]*"")?\)");
+        static readonly Regex BareUrlRx = new Regex(@"(https?://|www\.)[^\s<>()\[\]]+");
+
+        /// <summary>Link am Cursor: [Text](Adresse) oder eine nackte Adresse (dann ist <paramref name="text"/> null).</summary>
+        public static bool LinkAt(MarkdownEditorBox ed, out string text, out string url)
+        {
+            Match m = LinkMatchAt(ed);
+            text = url = null;
+            if (m == null) return false;
+            bool md = m.Groups[2].Success && m.Value.StartsWith("[");
+            text = md ? m.Groups[1].Value : null;
+            url = md ? m.Groups[2].Value : m.Value;
+            return true;
+        }
+
+        /// <summary>Ersetzt die Adresse des Links am Cursor.</summary>
+        public static void SetLinkUrl(MarkdownEditorBox ed, string url)
+        {
+            Match m = LinkMatchAt(ed);
+            if (m == null) return;
+            int line = ed.CaretPos().Line;
+            bool md = m.Value.StartsWith("[");
+            int at = md ? m.Groups[2].Index : m.Index;
+            int len = md ? m.Groups[2].Length : m.Length;
+            ed.Replace(new TextPos(line, at), new TextPos(line, at + len), url);
+            ed.SetCaret(new TextPos(line, at));
+        }
+
+        /// <summary>[Text](Adresse) → Text.</summary>
+        public static void RemoveLink(MarkdownEditorBox ed)
+        {
+            Match m = LinkMatchAt(ed);
+            if (m == null || !m.Value.StartsWith("[")) return;
+            int line = ed.CaretPos().Line;
+            ed.Replace(new TextPos(line, m.Index), new TextPos(line, m.Index + m.Length), m.Groups[1].Value);
+            ed.SetCaret(new TextPos(line, m.Index + m.Groups[1].Length));
+        }
+
+        static Match LinkMatchAt(MarkdownEditorBox ed)
+        {
+            TextPos caret = ed.CaretPos();
+            string line = ed.LineText(caret.Line);
+            foreach (Match m in MdLinkRx.Matches(line))
+                if (caret.Col >= m.Index && caret.Col <= m.Index + m.Length) return m;
+            foreach (Match m in BareUrlRx.Matches(line))
+                if (caret.Col >= m.Index && caret.Col <= m.Index + m.Length && !InsideMdLink(line, m.Index)) return m;
+            return null;
+        }
+
+        static bool InsideMdLink(string line, int index)
+        {
+            foreach (Match m in MdLinkRx.Matches(line))
+                if (index >= m.Index && index < m.Index + m.Length) return true;
+            return index > 1 && line[index - 1] == '(' && line[index - 2] == ']';   // Bild-URL
+        }
+
         /// <summary>Fügt einen Block (Tabelle, Trennlinie) unter der aktuellen Zeile ein – mit Leerzeilen davor/danach.</summary>
         static void InsertBlock(MarkdownEditorBox ed, IList<string> block)
         {

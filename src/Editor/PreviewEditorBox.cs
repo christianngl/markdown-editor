@@ -25,7 +25,7 @@ namespace MarkdownEditor.Editor
 
         /// <summary>Inhalt wurde vom Benutzer in der Vorschau geändert.</summary>
         public event EventHandler ContentEdited;
-        public event Action<string> FileDropped;
+        public event Action<string[]> FileDropped;
 
         public PreviewEditorBox()
         {
@@ -197,8 +197,113 @@ namespace MarkdownEditor.Editor
         {
             e.Handled = true;
             var files = e.Data.GetData(DataFormats.FileDrop) as string[];
-            Action<string> h = FileDropped;
-            if (files != null && files.Length > 0 && h != null) h(files[0]);
+            TextPointer at = GetPositionFromPoint(e.GetPosition(this), true);
+            if (at != null) CaretPosition = at;   // Bilder landen dort, wo sie abgelegt wurden
+            Action<string[]> h = FileDropped;
+            if (files != null && files.Length > 0 && h != null) h(files);
+        }
+
+        // ================================================================ Aufgaben per Klick abhaken
+
+        protected override void OnPreviewMouseLeftButtonDown(MouseButtonEventArgs e)
+        {
+            Paragraph task = Keyboard.Modifiers == ModifierKeys.None ? TaskBoxAt(e) : null;
+            if (task != null)
+            {
+                ToggleTask(task);
+                e.Handled = true;
+                return;
+            }
+            base.OnPreviewMouseLeftButtonDown(e);
+        }
+
+        protected override void OnPreviewMouseMove(MouseEventArgs e)
+        {
+            base.OnPreviewMouseMove(e);
+            Cursor = e.LeftButton == MouseButtonState.Released && TaskBoxAt(e) != null ? Cursors.Hand : null;
+        }
+
+        /// <summary>Aufgabenpunkt, dessen Kästchen (☐/☑) unter der Maus liegt.</summary>
+        Paragraph TaskBoxAt(MouseEventArgs e)
+        {
+            bool done;
+            var element = e.OriginalSource as FrameworkElement;
+            var iuc = element != null ? element.Parent as InlineUIContainer : null;
+            if (iuc != null)
+            {
+                // ☑ als Emoji-Bild
+                Paragraph owner = ParagraphOf(iuc);
+                return owner != null && FirstLeaf(owner) == iuc && IsTask(owner, out done) ? owner : null;
+            }
+            TextPointer pos = GetPositionFromPoint(e.GetPosition(this), false);
+            Paragraph p = pos != null ? pos.Paragraph : null;
+            if (p == null || !IsTask(p, out done)) return null;
+            var run = FirstLeaf(p) as Run;
+            return run != null && run.ContentStart.GetOffsetToPosition(pos) <= 1 ? p : null;
+        }
+
+        static Paragraph ParagraphOf(TextElement e)
+        {
+            while (e != null && !(e is Paragraph)) e = e.Parent as TextElement;
+            return e as Paragraph;
+        }
+
+        // ================================================================ Links und Tabellen am Cursor
+
+        public Hyperlink LinkAtCaret()
+        {
+            for (TextElement e = CaretPosition.Parent as TextElement; e != null; e = e.Parent as TextElement)
+            {
+                var link = e as Hyperlink;
+                if (link != null) return link;
+            }
+            return null;
+        }
+
+        public void SetLinkUrl(Hyperlink link, string url)
+        {
+            link.Tag = url;
+            link.ToolTip = url + "  (Strg+Klick zum Öffnen)";
+            RaiseEdited();   // Adressänderung ist keine Textänderung
+        }
+
+        /// <summary>Löst den Link auf; der Linktext bleibt stehen.</summary>
+        public void RemoveLink(Hyperlink link)
+        {
+            InlineCollection siblings = link.SiblingInlines;
+            foreach (Inline i in link.Inlines.ToList())
+            {
+                link.Inlines.Remove(i);
+                siblings.InsertBefore(link, i);
+            }
+            siblings.Remove(link);
+            RaiseEdited();
+        }
+
+        /// <summary>Zeile (0 = Kopfzeile) und Spalte der Tabellenzelle am Cursor.</summary>
+        public bool TableCellAtCaret(out int row, out int col)
+        {
+            row = col = 0;
+            TextElement e = CaretPosition.Parent as TextElement;
+            while (e != null && !(e is TableCell)) e = e.Parent as TextElement;
+            var cell = e as TableCell;
+            var tr = cell != null ? cell.Parent as TableRow : null;
+            var group = tr != null ? tr.Parent as TableRowGroup : null;
+            var table = group != null ? group.Parent as Table : null;
+            if (table == null) return false;
+            foreach (TableRowGroup g in table.RowGroups)
+            {
+                if (g == group) { row += g.Rows.IndexOf(tr); break; }
+                row += g.Rows.Count;
+            }
+            col = tr.Cells.IndexOf(cell);
+            return true;
+        }
+
+        void RaiseEdited()
+        {
+            EventHandler h = ContentEdited;
+            if (h != null) h(this, EventArgs.Empty);
         }
 
         // ================================================================ Formatierungen in der Vorschau
@@ -275,7 +380,11 @@ namespace MarkdownEditor.Editor
         /// <summary>Aufgabe am Cursor abhaken bzw. wieder öffnen (☐ ↔ ☑).</summary>
         public void ToggleTaskDone()
         {
-            Paragraph p = CaretPosition.Paragraph;
+            ToggleTask(CaretPosition.Paragraph);
+        }
+
+        void ToggleTask(Paragraph p)
+        {
             bool done;
             if (p == null || !IsTask(p, out done)) return;
             Inline first = FirstLeaf(p);

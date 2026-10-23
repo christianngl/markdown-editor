@@ -11,6 +11,7 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using MarkdownEditor.Dialogs;
 using MarkdownEditor.Editor;
@@ -126,13 +127,15 @@ namespace MarkdownEditor
             TextOptions.SetTextFormattingMode(this, TextFormattingMode.Display);
 
             InitCommands();
+            CommandManager.AddPreviewExecutedHandler(this, OnPreviewCommandExecuted);
+            CommandManager.AddPreviewCanExecuteHandler(this, OnPreviewCanExecute);
 
             // ---------------- Markdown-Editor
             _editor.EditorFontSize = _settings.FontSize;
             _editor.SpellCheckEnabled = _settings.SpellCheck;
             _editor.TextEdited += OnTextEdited;
             _editor.SelectionChanged += delegate { OnEditorCaretMoved(); };
-            _editor.FileDropped += path => { if (ConfirmDiscard()) OpenFile(path); };
+            _editor.FileDropped += files => OnFilesDropped(files, false);
             _editor.ContextMenu = new ContextMenu();
             _editor.ContextMenuOpening += delegate { _previewActive = false; BuildContextMenu(_editor.ContextMenu, false); };
             _editor.PreviewMouseWheel += OnEditorMouseWheel;
@@ -142,7 +145,7 @@ namespace MarkdownEditor
             _preview.SpellCheck.IsEnabled = _settings.SpellCheck;
             _preview.ContentEdited += OnPreviewEdited;
             _preview.SelectionChanged += delegate { OnPreviewCaretMoved(); };
-            _preview.FileDropped += path => { if (ConfirmDiscard()) OpenFile(path); };
+            _preview.FileDropped += files => OnFilesDropped(files, true);
             _preview.ContextMenu = new ContextMenu();
             _preview.ContextMenuOpening += delegate { _previewActive = true; BuildContextMenu(_preview.ContextMenu, true); };
             _preview.PreviewMouseWheel += OnEditorMouseWheel;
@@ -581,10 +584,40 @@ namespace MarkdownEditor
 
             if (kind == "table")
             {
-                MenuItem table = MI(_cTable);
-                table.Header = "Tabelle bearbeiten…";
-                items.Add(table);
+                items.Add(BuildTableMenu());
             }
+        }
+
+        /// <summary>Zeilen/Spalten an der Zelle am Cursor einfügen oder löschen, dazu der Tabellen-Dialog.</summary>
+        MenuItem BuildTableMenu()
+        {
+            int row, col;
+            bool inPreview = _previewActive && _previewHost.Visibility == Visibility.Visible;
+            if (!(inPreview ? _preview.TableCellAtCaret(out row, out col) : Formatter.TableCellAt(_editor, out row, out col)))
+                row = col = 0;
+
+            var menu = new MenuItem { Header = "Tabelle" };
+            menu.Items.Add(TableOp("Zeile oberhalb einfügen", row > 0, t => { t.InsertRow(row); return row; }));
+            menu.Items.Add(TableOp("Zeile unterhalb einfügen", true, t => { t.InsertRow(row + 1); return row + 1; }));
+            menu.Items.Add(TableOp("Zeile löschen", row > 0, t => { t.RemoveRow(row); return Math.Min(row, t.Rows.Count - 1); }));
+            menu.Items.Add(new Separator());
+            menu.Items.Add(TableOp("Spalte links einfügen", true, t => { t.InsertColumn(col); return row; }));
+            menu.Items.Add(TableOp("Spalte rechts einfügen", true, t => { t.InsertColumn(col + 1); return row; }));
+            menu.Items.Add(TableOp("Spalte löschen", true, t => { t.RemoveColumn(Math.Min(col, t.ColumnCount - 1)); return row; }));
+            menu.Items.Add(new Separator());
+            MenuItem dialog = MI(_cTable);
+            dialog.Header = "Tabelle bearbeiten…";
+            menu.Items.Add(dialog);
+            return menu;
+        }
+
+        MenuItem TableOp(string header, bool enabled, Func<MarkdownTable, int> change)
+        {
+            // Läuft wie die anderen Strukturbefehle aus der Vorschau heraus über das Markdown
+            var c = new Cmd { Header = header, Structural = true, Run = delegate { Formatter.ModifyTable(_editor, change); FocusEditor(); } };
+            MenuItem mi = MI(c);
+            mi.IsEnabled = enabled;
+            return mi;
         }
 
         MenuItem Opt(Cmd c, bool active)
@@ -649,17 +682,183 @@ namespace MarkdownEditor
                 InitialDirectory = CurrentFolder()
             };
             if (dlg.ShowDialog(this) != true) { FocusEditor(); return; }
+            InsertImageLinks(new[] { dlg.FileName });
+        }
 
-            string url = dlg.FileName;
+        static readonly string[] ImageExtensions = { ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp" };
+
+        static bool IsImageFile(string path)
+        {
+            return ImageExtensions.Contains(Path.GetExtension(path).ToLowerInvariant());
+        }
+
+        /// <summary>Fügt Bildlinks am Cursor ein (aus der Vorschau heraus am Ende des Blocks).</summary>
+        void InsertImageLinks(IEnumerable<string> files)
+        {
+            Execute(new Cmd
+            {
+                Structural = true,
+                Run = delegate
+                {
+                    foreach (string f in files) Formatter.InsertImage(_editor, Path.GetFileNameWithoutExtension(f), ImageUrl(f));
+                    FocusEditor();
+                }
+            });
+        }
+
+        /// <summary>Pfad für Markdown: relativ zur Notiz (wenn gespeichert), mit / und ohne Leerzeichen/Klammern.</summary>
+        string ImageUrl(string file)
+        {
+            string url = file;
             if (_path != null)
             {
                 var baseUri = new Uri(Path.GetDirectoryName(_path).TrimEnd('\\') + "\\");
-                Uri rel = baseUri.MakeRelativeUri(new Uri(dlg.FileName));
+                Uri rel = baseUri.MakeRelativeUri(new Uri(file));
                 if (!rel.IsAbsoluteUri) url = Uri.UnescapeDataString(rel.OriginalString);
             }
-            url = url.Replace('\\', '/').Replace(" ", "%20").Replace("(", "%28").Replace(")", "%29");
-            Formatter.InsertImage(_editor, Path.GetFileNameWithoutExtension(dlg.FileName), url);
-            FocusEditor();
+            return url.Replace('\\', '/').Replace(" ", "%20").Replace("(", "%28").Replace(")", "%29");
+        }
+
+        /// <summary>Bilddateien werden verlinkt, alles andere wie bisher geöffnet.</summary>
+        void OnFilesDropped(string[] files, bool fromPreview)
+        {
+            List<string> images = files.Where(IsImageFile).ToList();
+            if (images.Count == 0)
+            {
+                if (ConfirmDiscard()) OpenFile(files[0]);
+                return;
+            }
+            _previewActive = fromPreview;
+            InsertImageLinks(images);
+        }
+
+        /// <summary>
+        /// Strg+V bzw. „Einfügen“ mit einem Bild in der Zwischenablage: Screenshot als PNG in „bilder“ neben der Notiz
+        /// speichern und verlinken; im Explorer kopierte Bilddateien werden direkt verlinkt. Text hat Vorrang.
+        /// </summary>
+        void OnPreviewCommandExecuted(object sender, ExecutedRoutedEventArgs e)
+        {
+            if (e.Command != ApplicationCommands.Paste || (e.OriginalSource != _editor && e.OriginalSource != _preview)) return;
+            IDataObject data;
+            try { data = Clipboard.GetDataObject(); }
+            catch (Exception) { return; }
+            if (data == null || data.GetDataPresent(DataFormats.UnicodeText)) return;
+
+            var dropped = data.GetData(DataFormats.FileDrop) as string[];
+            List<string> files = dropped != null ? dropped.Where(IsImageFile).ToList() : new List<string>();
+            BitmapSource image = files.Count == 0 ? ClipboardImage(data) : null;
+            if (files.Count == 0 && image == null) return;
+
+            e.Handled = true;
+            _previewActive = e.OriginalSource == _preview;
+            if (image != null)
+            {
+                string file = SaveImageNextToNote(image);
+                if (file == null) return;
+                files.Add(file);
+                ShowNotice("Bild gespeichert: " + ImageUrl(file).Replace("%20", " "));
+            }
+            InsertImageLinks(files);
+        }
+
+        /// <summary>„Einfügen“ auch dann anbieten, wenn nur ein Bild bzw. Dateien in der Zwischenablage liegen.</summary>
+        void OnPreviewCanExecute(object sender, CanExecuteRoutedEventArgs e)
+        {
+            if (e.Command != ApplicationCommands.Paste || (e.OriginalSource != _editor && e.OriginalSource != _preview)) return;
+            try
+            {
+                if (!Clipboard.ContainsText() && (Clipboard.ContainsImage() || Clipboard.ContainsFileDropList()))
+                {
+                    e.CanExecute = true;
+                    e.Handled = true;
+                }
+            }
+            catch (Exception)
+            {
+                // Zwischenablage gerade belegt
+            }
+        }
+
+        static BitmapSource ClipboardImage(IDataObject data)
+        {
+            try
+            {
+                var png = data.GetData("PNG") as MemoryStream;
+                if (png != null) return BitmapFrame.Create(png, BitmapCreateOptions.None, BitmapCacheOption.OnLoad);
+                var bmp = data.GetData(DataFormats.Bitmap) as BitmapSource;
+                // Bitmap-Daten der Zwischenablage haben oft einen leeren Alphakanal → ohne Alpha übernehmen
+                return bmp != null ? new FormatConvertedBitmap(bmp, PixelFormats.Bgr24, null, 0) : null;
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+
+        /// <summary>Speichert als PNG unter „bilder\Notizname-Datum-Uhrzeit.png“; ungespeicherte Notizen werden vorher gespeichert.</summary>
+        string SaveImageNextToNote(BitmapSource image)
+        {
+            if (_path == null)
+            {
+                if (MessageBox.Show(this, "Bilder werden neben der Notiz im Ordner „bilder“ abgelegt. Dazu muss die Notiz zuerst gespeichert werden.",
+                        AppName, MessageBoxButton.OKCancel, MessageBoxImage.Information) != MessageBoxResult.OK || !SaveAs())
+                    return null;
+            }
+            try
+            {
+                string dir = Path.Combine(Path.GetDirectoryName(_path), "bilder");
+                Directory.CreateDirectory(dir);
+                string stem = Path.GetFileNameWithoutExtension(_path) + "-" + DateTime.Now.ToString("yyyyMMdd-HHmmss");
+                string file = Path.Combine(dir, stem + ".png");
+                for (int n = 2; File.Exists(file); n++) file = Path.Combine(dir, stem + "-" + n + ".png");
+                var encoder = new PngBitmapEncoder();
+                encoder.Frames.Add(BitmapFrame.Create(image));
+                using (FileStream fs = File.Create(file)) encoder.Save(fs);
+                return file;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, "Bild konnte nicht gespeichert werden:\n" + ex.Message, AppName, MessageBoxButton.OK, MessageBoxImage.Warning);
+                return null;
+            }
+        }
+
+        /// <summary>Link am Cursor öffnen, Adresse ändern oder Link entfernen (Text bleibt).</summary>
+        void AddLinkItems(ItemCollection items, bool forPreview)
+        {
+            string url, text;
+            Hyperlink link = null;
+            if (forPreview)
+            {
+                link = _preview.LinkAtCaret();
+                if (link == null) return;
+                url = link.Tag as string ?? (link.NavigateUri != null ? link.NavigateUri.OriginalString : "");
+                text = new TextRange(link.ContentStart, link.ContentEnd).Text;
+                if (text == url) text = null;   // nackte Adresse
+            }
+            else if (!Formatter.LinkAt(_editor, out text, out url)) return;
+
+            string baseDir = _path != null ? Path.GetDirectoryName(_path) : null;
+            MenuItem open = MI("Link öffnen", delegate { PreviewRenderer.OpenUrl(url, baseDir); });
+            open.InputGestureText = forPreview ? "Strg+Klick" : "";
+            open.ToolTip = url;
+            items.Add(open);
+            items.Add(MI("Link bearbeiten…", delegate
+            {
+                var dlg = new InputDialog("Link bearbeiten", "Adresse (URL oder Dateipfad):", url) { Owner = this };
+                if (dlg.ShowDialog() != true || dlg.Value.Trim().Length == 0) return;
+                if (link != null) { _preview.SetLinkUrl(link, dlg.Value.Trim()); _preview.Focus(); }
+                else { Formatter.SetLinkUrl(_editor, dlg.Value.Trim()); FocusEditor(); }
+            }));
+            if (text != null)
+            {
+                items.Add(MI("Link entfernen", delegate
+                {
+                    if (link != null) { _preview.RemoveLink(link); _preview.Focus(); }
+                    else { Formatter.RemoveLink(_editor); FocusEditor(); }
+                }));
+            }
+            items.Add(new Separator());
         }
 
         void BuildContextMenu(ContextMenu menu, bool forPreview)
@@ -687,6 +886,7 @@ namespace MarkdownEditor
                 }
             }
 
+            AddLinkItems(menu.Items, forPreview);
             AddFormatItems(menu.Items);
             menu.Items.Add(new Separator());
             menu.Items.Add(MI(_cDictate));

@@ -9,11 +9,12 @@ wird automatisch in die andere Seite übertragen. Gespeichert wird **immer reine
 | Bereich | Umfang |
 | --- | --- |
 | Markdown-Editor | Live-Formatierung pro Zeile, Markierungen bleiben sichtbar (gedimmt), Zoom, Suche, textbasiertes Undo/Redo, Einfügen immer als reiner Text. **Enter** fügt einen Markdown-Zeilenumbruch ein (zwei Leerzeichen am Zeilenende, dezent markiert), damit der folgende Text auch in der Vorschau in einer neuen Zeile beginnt |
-| Vorschau (bearbeitbar) | Tippen, Löschen, Fett/Kursiv/Unterstrichen/Durchgestrichen/Code, Überschriften, Links und Emojis direkt in der formatierten Ansicht; Tabellenzellen und Listenpunkte sind editierbar. Strukturbefehle (Tabelle, Trennlinie, Listen, Zitat, Codeblock) laufen über das Markdown und gelten für den Block am Cursor |
+| Vorschau (bearbeitbar) | Tippen, Löschen, Fett/Kursiv/Unterstrichen/Durchgestrichen/Code, Überschriften, Links und Emojis direkt in der formatierten Ansicht; Tabellenzellen und Listenpunkte sind editierbar, Aufgaben lassen sich per Klick auf ☐ abhaken. Strukturbefehle (Tabelle, Trennlinie, Listen, Zitat, Codeblock) laufen über das Markdown und gelten für den Block am Cursor |
 | Synchronisation | Cursor in einem Feld → die passende Stelle wird im anderen angezeigt. Unbearbeitete Blöcke behalten ihren exakten Original-Markdown-Text |
-| Rechtsklick / Format-Menü | in beiden Feldern, in Gruppen: **Schrift** (Fett, Kursiv, Unterstrichen `__Text__`, Durchgestrichen, Inline-Code, Formatierung entfernen), **Textebene** (Standardtext, Überschrift 1–6, Zitat, Codeblock), **Listen** (Aufzählung, Nummerierung, Aufgabenliste, Aufgabe erledigt, Ein-/Ausrücken), **Hinzufügen** (Link, Bild, Emoji, Trennlinie, Tabelle). Häkchen zeigen die Absatzart am Cursor; in Tabellen zusätzlich „Tabelle bearbeiten…“; Rechtschreibvorschläge |
+| Rechtsklick / Format-Menü | in beiden Feldern, in Gruppen: **Schrift** (Fett, Kursiv, Unterstrichen `__Text__`, Durchgestrichen, Inline-Code, Formatierung entfernen), **Textebene** (Standardtext, Überschrift 1–6, Zitat, Codeblock), **Listen** (Aufzählung, Nummerierung, Aufgabenliste, Aufgabe erledigt, Ein-/Ausrücken), **Hinzufügen** (Link, Bild, Emoji, Trennlinie, Tabelle). Häkchen zeigen die Absatzart am Cursor; auf Links: **Link öffnen / bearbeiten / entfernen**; in Tabellen: **Tabelle** (Zeile oberhalb/unterhalb einfügen, Zeile löschen, Spalte links/rechts einfügen, Spalte löschen, Tabelle bearbeiten…); Rechtschreibvorschläge |
 | Emojis | Vollständige Unicode-Auswahl (1.923 Emojis) in den Kategorien der Apple-Tastatur, Suche auf Deutsch/Englisch, „Häufig verwendet“, farbige Vorschau. In der Datei steht das Unicode-Zeichen (auf iPhone/Mac also in Apple-Optik) |
-| Tabellen | Visueller Tabellen-Editor (Zeilen/Spalten, Ausrichtung). Gespeichert wird `Spalte 1 \| Spalte 2` / `--- \| ---` als ausgerichteter Fließtext |
+| Tabellen | Visueller Tabellen-Editor (Zeilen/Spalten, Ausrichtung). Gespeichert wird `Spalte 1 \| Spalte 2` / `--- \| ---` als ausgerichteter Fließtext. Zeilen und Spalten lassen sich auch per Rechtsklick in der Zelle einfügen/löschen |
+| Bilder | **Strg+V** mit einem Screenshot speichert ihn als PNG in `bilder/` neben der Notiz und verlinkt ihn (ungespeicherte Notiz wird vorher gespeichert); im Explorer kopierte oder per Drag & Drop abgelegte Bilddateien werden an der Cursor- bzw. Ablagestelle verlinkt, andere Dateien wie bisher geöffnet. Pfade relativ zur Notiz |
 | Dateien | Seitenleiste **„Dateien“**: alle mit dem Programm erstellten, geöffneten oder gespeicherten Dateien (Ablageort wird gemerkt, Filter, Rechtsklick: Öffnen / Im Explorer anzeigen / Aus Liste entfernen). Dateien, die am gespeicherten Ort nicht mehr existieren, werden beim Start, beim Anzeigen der Liste und beim Öffnen automatisch entfernt. Außerdem: „Ordner“-Ansicht, Neu, Öffnen, Speichern, Speichern unter, Drag & Drop, Auto-Save, atomares Speichern |
 | Ansicht | Seitenleiste (F9) mit Gliederung / Dateien / Ordner; **Markdown und Vorschau** (Strg+Umschalt+1), **nur Markdown** (Strg+Umschalt+2), **nur Vorschau** (Strg+Umschalt+3), F12 wechselt reihum; Vollbild (F11, Esc beendet) |
 | Themes | Minimal Light, Minimal Dark, Solarized Light/Dark, Monokai, Nord, Sepia; Umschalten live ohne Neustart; Dark/Light per Strg+Umschalt+D |
@@ -150,8 +151,6 @@ MarkdownEditor/
 1. Suchen & Ersetzen (inkl. Regex)
 2. Mehrere Dokumente in Tabs
 3. Export nach HTML/PDF
-4. Bilder per Strg+V aus der Zwischenablage als Datei speichern und verlinken
-5. Erkennen externer Dateiänderungen (FileSystemWatcher)
-6. Aufgaben in der Vorschau per Klick abhaken
-7. Wiederherstellung nach Absturz (periodischer Snapshot)
-8. Eigene Themes als JSON-Datei laden
+4. Erkennen externer Dateiänderungen (FileSystemWatcher)
+5. Wiederherstellung nach Absturz (periodischer Snapshot)
+6. Eigene Themes als JSON-Datei laden

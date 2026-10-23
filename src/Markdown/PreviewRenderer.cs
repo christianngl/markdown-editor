@@ -464,7 +464,7 @@ namespace MarkdownEditor.Markdown
             }
         }
 
-        static void OpenUrl(string url, string baseDir)
+        public static void OpenUrl(string url, string baseDir)
         {
             try
             {

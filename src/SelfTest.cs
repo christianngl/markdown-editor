@@ -221,6 +221,77 @@ namespace MarkdownEditor
             else Check("Vorschau: formatierter Absatz gefunden", false, null);
             _previewActive = false;
 
+            // Links am Cursor: erkennen, Adresse ändern, entfernen
+            _editor.SetText("Siehe [Doku](https://a.de) und https://b.de sowie ![Bild](c.png)");
+            string lt, lu;
+            _editor.SetCaret(new TextPos(0, 8));
+            Check("Link am Cursor erkannt", Formatter.LinkAt(_editor, out lt, out lu) && lt == "Doku" && lu == "https://a.de", lt + " | " + lu);
+            Formatter.SetLinkUrl(_editor, "https://neu.de");
+            Check("Link-Adresse geändert", _editor.LineText(0).StartsWith("Siehe [Doku](https://neu.de) und"), _editor.LineText(0));
+            _editor.SetCaret(new TextPos(0, 8));
+            Formatter.RemoveLink(_editor);
+            Check("Link entfernt, Text bleibt", _editor.LineText(0).StartsWith("Siehe Doku und https://b.de"), _editor.LineText(0));
+            _editor.SetCaret(new TextPos(0, 20));
+            Check("Nackte Adresse erkannt", Formatter.LinkAt(_editor, out lt, out lu) && lt == null && lu == "https://b.de", lu);
+            _editor.SetCaret(new TextPos(0, _editor.LineText(0).Length - 3));
+            Check("Bild ist kein Link", !Formatter.LinkAt(_editor, out lt, out lu), lu);
+
+            _editor.SetText("Text mit [Link](https://a.de) drin");
+            RenderPreview(_editor.GetLines());
+            _previewActive = true;
+            Paragraph linkPara = FindParagraph("Text mit");
+            Hyperlink pl = linkPara != null ? linkPara.Inlines.OfType<Hyperlink>().FirstOrDefault() : null;
+            if (pl != null)
+            {
+                TextPointer inLink = pl.ContentStart.GetPositionAtOffset(2);
+                _preview.Selection.Select(inLink, inLink);
+                Check("Vorschau: Link am Cursor", _preview.LinkAtCaret() == pl, null);
+                _preview.SetLinkUrl(pl, "https://neu.de");
+                SyncFromPreview();
+                Check("Vorschau: Link-Adresse geändert", _editor.LineText(0) == "Text mit [Link](https://neu.de) drin", _editor.LineText(0));
+                _preview.RemoveLink(pl);
+                SyncFromPreview();
+                Check("Vorschau: Link entfernt", _editor.LineText(0) == "Text mit Link drin", _editor.LineText(0));
+            }
+            else Check("Vorschau: Link gefunden", false, null);
+            _previewActive = false;
+
+            // Tabellen: Zelle am Cursor, Zeilen/Spalten einfügen und löschen
+            _editor.SetText("A | B\n--- | ---\n1 | 2\n3 | 4");
+            int tr, tc;
+            _editor.SetCaret(new TextPos(2, 5));
+            Check("Tabellenzelle am Cursor", Formatter.TableCellAt(_editor, out tr, out tc) && tr == 1 && tc == 1, tr + "/" + tc);
+            Formatter.ModifyTable(_editor, t => { t.InsertRow(2); return 2; });
+            Check("Tabelle: Zeile unterhalb eingefügt", _editor.GetLines().Count == 5 && MarkdownTable.SplitRow(_editor.LineText(3)).All(x => x.Length == 0), string.Join(" ⏎ ", _editor.GetLines()));
+            Formatter.ModifyTable(_editor, t => { t.RemoveRow(2); return 1; });
+            Formatter.ModifyTable(_editor, t => { t.InsertColumn(1); return 1; });
+            Check("Tabelle: Spalte eingefügt", MarkdownTable.SplitRow(_editor.LineText(0)).SequenceEqual(new[] { "A", "", "B" }), _editor.LineText(0));
+            Formatter.ModifyTable(_editor, t => { t.RemoveColumn(1); return 1; });
+            Check("Tabelle: Spalte gelöscht", _editor.GetText() == "A   | B\n--- | ---\n1   | 2\n3   | 4", _editor.GetText().Replace("\n", " ⏎ "));
+            RenderPreview(_editor.GetLines());
+            Table pt = _preview.Document.Blocks.OfType<Table>().FirstOrDefault();
+            if (pt != null)
+            {
+                TextPointer inCell = ((Paragraph)pt.RowGroups[0].Rows[2].Cells[1].Blocks.FirstBlock).ContentStart;
+                _preview.Selection.Select(inCell, inCell);
+                Check("Vorschau: Tabellenzelle am Cursor", _preview.TableCellAtCaret(out tr, out tc) && tr == 2 && tc == 1, tr + "/" + tc);
+            }
+
+            // Bilder: Zwischenablage-Bild speichern (ohne echte Zwischenablage) und verlinken
+            var pixels = BitmapSource.Create(4, 4, 96, 96, PixelFormats.Bgr32, null, new byte[64], 16);
+            string imgFile = SaveImageNextToNote(pixels);
+            Check("Bild in „bilder“ gespeichert", imgFile != null && File.Exists(imgFile) && Path.GetFileName(Path.GetDirectoryName(imgFile)) == "bilder", imgFile);
+            if (imgFile != null)
+            {
+                _editor.SetText("Screenshot:");
+                _editor.SetCaret(new TextPos(0, 11));
+                _previewActive = false;
+                OnFilesDropped(new[] { imgFile }, false);
+                Check("Bild relativ verlinkt", _editor.GetText() == "Screenshot: ![" + Path.GetFileNameWithoutExtension(imgFile) + "](bilder/" + Path.GetFileName(imgFile) + ")", _editor.GetText());
+                File.Delete(imgFile);
+                try { Directory.Delete(Path.GetDirectoryName(imgFile)); } catch (IOException) { }
+            }
+
             // 13. Diktat (ohne Mikrofon/whisper: Aufbereitung, WAV-Format, Einfügen)
             string dp = DictationPostProcessor.Process("[BLANK_AUDIO]\n Erster Gedanke.\n (Musik) Zweiter Gedanke. ", true);
             Check("Diktat: Artefakte entfernt, Segmente verbunden", dp == "Erster Gedanke. Zweiter Gedanke.", dp);
