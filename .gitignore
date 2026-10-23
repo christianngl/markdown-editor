@@ -1,0 +1,14 @@
+# --- Build-Ausgabe (build.ps1), whisper-Modell lädt tools/setup-whisper.ps1 ---
+bin/
+obj/
+
+# --- Betriebssystem & Editor ---
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+
+# --- Lokale Claude-Einstellungen ---
+.claude/settings.local.json
+CLAUDE.local.md

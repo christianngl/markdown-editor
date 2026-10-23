@@ -1,0 +1,29 @@
+<!--
+  Optional: Build mit dem .NET SDK (Visual Studio / "dotnet build").
+  Der Standard-Build ohne SDK läuft über build.ps1 (csc.exe aus .NET Framework 4.8).
+  Für eine einzelne, selbstständige EXE auf .NET 8:
+    dotnet publish -c Release -f net8.0-windows -r win-x64 -p:PublishSingleFile=true -p:SelfContained=false
+-->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFrameworks>net48;net8.0-windows</TargetFrameworks>
+    <UseWPF>true</UseWPF>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AssemblyName>MarkdownEditor</AssemblyName>
+    <RootNamespace>MarkdownEditor</RootNamespace>
+    <StartupObject>MarkdownEditor.Program</StartupObject>
+    <EnableDefaultApplicationDefinition>false</EnableDefaultApplicationDefinition>
+    <ApplicationIcon>assets\app.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="bin\**;obj\**" />
+    <EmbeddedResource Include="assets\emoji.dat" LogicalName="MarkdownEditor.emoji.dat" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
+    <Reference Include="System.Data" />
+  </ItemGroup>
+</Project>
