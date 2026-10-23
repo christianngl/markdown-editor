@@ -43,6 +43,12 @@ Der Code ist bewusst C#-5-kompatibel, damit beide Wege funktionieren.
 
 Die EXE ist portabel. Einstellungen und Dateiliste liegen unter `%APPDATA%\MarkdownEditor\settings.ini`.
 
+**Als Standard-App für Textformate** (`.md`, `.markdown`, `.mdown`, `.mkd`, `.mkdn`, `.txt`; pro Gerät einmal, auch nach einem Umzug des Ordners):
+`powershell -ExecutionPolicy Bypass -File .\tools\register-file-types.ps1`. Das Skript registriert `bin\MarkdownEditor.exe`
+für den aktuellen Benutzer und entfernt Einträge alter Versionen, deren EXE nicht mehr existiert. Diese erscheinen sonst als
+defekte Doppel im „Öffnen mit“-Dialog. Anschließend öffnet sich *Einstellungen → Standard-Apps → Markdown Editor*. Dort einmal
+„Als Standard festlegen“ klicken, denn die Standard-App kann unter Windows nur der Benutzer selbst setzen.
+
 ## KI-Funktionen
 
 Die KI-Befehle schicken die Notiz an die Claude-API. Ist im Markdown etwas markiert, wird nur die Auswahl geschickt.
