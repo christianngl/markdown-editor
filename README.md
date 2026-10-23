@@ -11,16 +11,15 @@ wird automatisch in die andere Seite übertragen. Gespeichert wird **immer reine
 | Markdown-Editor | Live-Formatierung pro Zeile, Markierungen bleiben sichtbar (gedimmt), Zoom, Suche, textbasiertes Undo/Redo, Einfügen immer als reiner Text. **Enter** fügt einen Markdown-Zeilenumbruch ein (zwei Leerzeichen am Zeilenende, dezent markiert), damit der folgende Text auch in der Vorschau in einer neuen Zeile beginnt |
 | Vorschau (bearbeitbar) | Tippen, Löschen, Fett/Kursiv/Unterstrichen/Durchgestrichen/Code, Überschriften, Links und Emojis direkt in der formatierten Ansicht; Tabellenzellen und Listenpunkte sind editierbar. Strukturbefehle (Tabelle, Trennlinie, Listen, Zitat, Codeblock) laufen über das Markdown und gelten für den Block am Cursor |
 | Synchronisation | Cursor in einem Feld → die passende Stelle wird im anderen angezeigt. Unbearbeitete Blöcke behalten ihren exakten Original-Markdown-Text |
-| Rechtsklick / Format-Menü | in beiden Feldern: Überschrift 1–3, Standardtext, Fett, Kursiv, Unterstrichen (`__Text__`), Durchgestrichen, Inline-Code, Emoji, Trennlinie (`---`), Tabelle einfügen/bearbeiten, Listen, Aufgaben, Zitat, Codeblock, Link; Rechtschreibvorschläge |
+| Rechtsklick / Format-Menü | in beiden Feldern, in Gruppen: **Schrift** (Fett, Kursiv, Unterstrichen `__Text__`, Durchgestrichen, Inline-Code, Formatierung entfernen), **Textebene** (Standardtext, Überschrift 1–6, Zitat, Codeblock), **Listen** (Aufzählung, Nummerierung, Aufgabenliste, Aufgabe erledigt, Ein-/Ausrücken), **Hinzufügen** (Link, Bild, Emoji, Trennlinie, Tabelle). Häkchen zeigen die Absatzart am Cursor; in Tabellen zusätzlich „Tabelle bearbeiten…“; Rechtschreibvorschläge |
 | Emojis | Vollständige Unicode-Auswahl (1.923 Emojis) in den Kategorien der Apple-Tastatur, Suche auf Deutsch/Englisch, „Häufig verwendet“, farbige Vorschau. In der Datei steht das Unicode-Zeichen (auf iPhone/Mac also in Apple-Optik) |
 | Tabellen | Visueller Tabellen-Editor (Zeilen/Spalten, Ausrichtung). Gespeichert wird `Spalte 1 \| Spalte 2` / `--- \| ---` als ausgerichteter Fließtext |
 | Dateien | Seitenleiste **„Dateien“**: alle mit dem Programm erstellten, geöffneten oder gespeicherten Dateien (Ablageort wird gemerkt, Filter, Rechtsklick: Öffnen / Im Explorer anzeigen / Aus Liste entfernen). Dateien, die am gespeicherten Ort nicht mehr existieren, werden beim Start, beim Anzeigen der Liste und beim Öffnen automatisch entfernt. Außerdem: „Ordner“-Ansicht, Neu, Öffnen, Speichern, Speichern unter, Drag & Drop, Auto-Save, atomares Speichern |
 | Ansicht | Seitenleiste (F9) mit Gliederung / Dateien / Ordner; **Markdown und Vorschau** (Strg+Umschalt+1), **nur Markdown** (Strg+Umschalt+2), **nur Vorschau** (Strg+Umschalt+3), F12 wechselt reihum; Vollbild (F11, Esc beendet) |
 | Themes | Minimal Light, Minimal Dark, Solarized Light/Dark, Monokai, Nord, Sepia; Umschalten live ohne Neustart; Dark/Light per Strg+Umschalt+D |
-| KI (Claude) | Menü **KI** und Rechtsklick: *Zusammenfassen* (Strg+Umschalt+A), *Strukturieren* (Strg+Umschalt+G), *Eigene Anweisung…* (Strg+Umschalt+J). Siehe [KI-Funktionen](#ki-funktionen) |
 
-Wichtige Tastenkürzel: Strg+B/I/U (Fett/Kursiv/Unterstrichen), Strg+1/2/3/0 (Überschriften/Standardtext), Strg+T (Tabelle),
-Strg+K (Link), **Strg+Umschalt+E (Emoji)**, Strg+Klick (Link in der Vorschau öffnen). Alle weiteren stehen unter *Hilfe → Tastenkürzel*.
+Wichtige Tastenkürzel: Strg+B/I/U (Fett/Kursiv/Unterstrichen), Strg+1…6/0 (Überschriften/Standardtext), Strg+Leertaste (Formatierung entfernen), Strg+Enter (Aufgabe abhaken), Strg+T (Tabelle),
+Strg+K (Link), Strg+Umschalt+I (Bild), **Strg+Umschalt+E (Emoji)**, Strg+Klick (Link in der Vorschau öffnen). Alle weiteren stehen unter *Hilfe → Tastenkürzel*.
 
 ## Build
 
@@ -48,22 +47,6 @@ Die EXE ist portabel. Einstellungen und Dateiliste liegen unter `%APPDATA%\Markd
 für den aktuellen Benutzer und entfernt Einträge alter Versionen, deren EXE nicht mehr existiert. Diese erscheinen sonst als
 defekte Doppel im „Öffnen mit“-Dialog. Anschließend öffnet sich *Einstellungen → Standard-Apps → Markdown Editor*. Dort einmal
 „Als Standard festlegen“ klicken, denn die Standard-App kann unter Windows nur der Benutzer selbst setzen.
-
-## KI-Funktionen
-
-Die KI-Befehle schicken die Notiz an die Claude-API. Ist im Markdown etwas markiert, wird nur die Auswahl geschickt.
-Das Ergebnis erscheint in einem Dialog und lässt sich dort noch bearbeiten. Danach gibt es drei Möglichkeiten:
-**ersetzen**, **anhängen** (bzw. nach der Auswahl einfügen) oder **verwerfen**. Übernehmen lässt sich mit Strg+Z rückgängig machen,
-und **Esc** bricht eine laufende Anfrage ab. Aus der Vorschau heraus wirken die Befehle immer auf die ganze Notiz.
-
-- **API-Schlüssel:** von [console.anthropic.com](https://console.anthropic.com). Eintragen unter *KI → API-Schlüssel / Modell…*;
-  ohne gespeicherten Schlüssel wird die Umgebungsvariable `ANTHROPIC_API_KEY` verwendet. Der Schlüssel liegt in `settings.ini`,
-  verschlüsselt mit der Windows-DPAPI (nur für den aktuellen Windows-Benutzer lesbar).
-- **Modell:** Standard ist `claude-sonnet-5-5`, umstellbar im selben Dialog (z. B. `claude-haiku-4-5` für schnell und günstig).
-  Lehnt ein Sicherheitsfilter eine Anfrage ab, beantwortet sie der Server automatisch mit einem Ersatzmodell (`fallbacks: "default"`).
-- **Datenschutz:** Der Notiztext wird an die Anthropic-API gesendet. Für vertrauliche Notizen bitte nicht verwenden.
-- **Code:** `Services/ClaudeClient.cs` (HTTP-Aufruf, kein NuGet), `Services/AiPrompts.cs` (Prompts anpassen),
-  `MainWindow.Ai.cs` (Befehle), `Dialogs/AiResultDialog.cs`, `Dialogs/AiSettingsDialog.cs`.
 
 ## Diktat (offline)
 
@@ -109,7 +92,6 @@ MarkdownEditor/
 └─ src/
    ├─ Program.cs                Einstiegspunkt, globale Fehlerbehandlung, --selftest
    ├─ MainWindow.cs             Layout, Menüs, Befehle (Routing ins aktive Feld), Dateien, Seitenleiste, Sync Markdown ↔ Vorschau
-   ├─ MainWindow.Ai.cs          KI-Befehle (Claude): Zusammenfassen, Strukturieren, eigene Anweisung
    ├─ MainWindow.Dictation.cs   Diktat: Aufnahme, lokale Transkription (whisper.cpp), Einfügen am Cursor
    ├─ SelfTest.cs               interner Selbsttest
    ├─ Editor/
@@ -123,10 +105,10 @@ MarkdownEditor/
    │  ├─ PreviewRenderer.cs     Markdown → bearbeitbares FlowDocument (mit Block↔Zeilen-Verknüpfung)
    │  ├─ MarkdownSerializer.cs  FlowDocument → Markdown; Assemble() schreibt nur geänderte Blöcke neu
    │  └─ PreviewModel.cs        BlockInfo, InlineTag, PreviewStyle, RenderResult
-   ├─ Dialogs/                  TableDialog, EmojiPicker, InputDialog, AiResultDialog, AiSettingsDialog, DictationSettingsDialog
+   ├─ Dialogs/                  TableDialog, EmojiPicker, InputDialog, DictationSettingsDialog
    ├─ Themes/                   Theme/ThemeCatalog, ThemeManager, Styles (XAML)
-   └─ Services/                 AppSettings (inkl. Dateiliste), DocumentFile, ClaudeClient, AiPrompts, Dpapi,
-                                AudioRecorder, WhisperTranscriber, DictationPostProcessor
+   └─ Services/                 AppSettings (inkl. Dateiliste), DocumentFile, AudioRecorder,
+                                WhisperTranscriber, DictationPostProcessor
 ```
 
 ## Architektur in Kürze

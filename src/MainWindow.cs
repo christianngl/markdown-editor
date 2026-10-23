@@ -44,6 +44,7 @@ namespace MarkdownEditor
             public Action Run;                       // Ausführung im Markdown-Editor
             public Action<PreviewEditorBox> Preview; // Ausführung direkt in der Vorschau (optional)
             public bool Structural;                  // in der Vorschau: über den Markdown-Editor ausführen
+            public string Gesture;                   // angezeigtes Kürzel, wenn ein Feld es selbst behandelt (Strg+Z, Tab)
         }
 
         sealed class SideEntry
@@ -75,8 +76,9 @@ namespace MarkdownEditor
 
         MenuItem _themeMenu, _recentMenu, _autoSaveItem, _sidebarItem, _fullScreenItem, _spellItem;
         MenuItem _viewBothItem, _viewMarkdownItem, _viewPreviewItem;
-        Cmd _cH1, _cH2, _cH3, _cNormal, _cBold, _cItalic, _cUnderline, _cStrike, _cCode, _cRule, _cTable, _cEmoji;
-        Cmd _cBullet, _cOrdered, _cTask, _cQuote, _cCodeBlock, _cLink;
+        Cmd[] _cHeadings;   // Überschrift 1–6
+        Cmd _cNormal, _cBold, _cItalic, _cUnderline, _cStrike, _cCode, _cClear, _cRule, _cTable, _cEmoji, _cImage;
+        Cmd _cBullet, _cOrdered, _cTask, _cTaskDone, _cIndent, _cOutdent, _cQuote, _cCodeBlock, _cLink;
         Cmd _cNew, _cOpen, _cSave, _cSaveAs, _cFind, _cFindNext, _cUndo, _cRedo;
         Cmd _cSidebar, _cViewCycle, _cViewBoth, _cViewMarkdown, _cViewPreview, _cFullScreen, _cDark, _cZoomIn, _cZoomOut, _cZoomReset;
 
@@ -255,21 +257,27 @@ namespace MarkdownEditor
             // Strg+Z / Strg+Y behandeln Editor und Vorschau jeweils selbst; das Menü leitet ins aktive Feld.
             _cUndo = Reg("Rückgängig", C, Key.None, delegate { _editor.Undo(); });
             _cUndo.Preview = pv => pv.Undo();
+            _cUndo.Gesture = "Strg+Z";
             _cRedo = Reg("Wiederholen", C, Key.None, delegate { _editor.Redo(); });
             _cRedo.Preview = pv => pv.Redo();
+            _cRedo.Gesture = "Strg+Y";
             _cFind = Reg("Suchen…", C, Key.F, ShowFindBar);
             _cFindNext = Reg("Weitersuchen", N, Key.F3, delegate { FindNext(true); });
             Reg("Rückwärts suchen", ModifierKeys.Shift, Key.F3, delegate { FindNext(false); });
 
-            _cH1 = Fmt("Überschrift 1", C, Key.D1, ed => Formatter.SetHeading(ed, 1), pv => pv.SetHeading(1));
-            _cH2 = Fmt("Überschrift 2", C, Key.D2, ed => Formatter.SetHeading(ed, 2), pv => pv.SetHeading(2));
-            _cH3 = Fmt("Überschrift 3", C, Key.D3, ed => Formatter.SetHeading(ed, 3), pv => pv.SetHeading(3));
+            _cHeadings = new Cmd[6];
+            for (int i = 1; i <= 6; i++)
+            {
+                int level = i;
+                _cHeadings[i - 1] = Fmt("Überschrift " + level, C, Key.D0 + level, ed => Formatter.SetHeading(ed, level), pv => pv.SetHeading(level));
+            }
             _cNormal = Fmt("Standardtext", C, Key.D0, ed => Formatter.SetHeading(ed, 0), pv => pv.SetHeading(0));
             _cBold = Fmt("Fett", C, Key.B, Formatter.Bold, pv => pv.ToggleBold());
             _cItalic = Fmt("Kursiv", C, Key.I, Formatter.Italic, pv => pv.ToggleItalic());
             _cUnderline = Fmt("Unterstrichen", C, Key.U, Formatter.Underline, pv => pv.ToggleUnderline());
             _cStrike = Fmt("Durchgestrichen", CS, Key.X, Formatter.Strike, pv => pv.ToggleStrike());
             _cCode = Fmt("Inline-Code", CS, Key.C, Formatter.InlineCode, pv => pv.ToggleCode());
+            _cClear = Fmt("Formatierung entfernen", C, Key.Space, Formatter.ClearFormatting, pv => pv.ClearFormatting());
             _cLink = Fmt("Link", C, Key.K, Formatter.InsertLink, PreviewInsertLink);
             _cEmoji = Reg("Emoji…", CS, Key.E, ShowEmojiPicker);
 
@@ -277,9 +285,16 @@ namespace MarkdownEditor
             _cRule = Fmt("Trennlinie", CS, Key.H, Formatter.InsertRule, null);
             _cTable = Reg("Tabelle einfügen…", C, Key.T, delegate { Formatter.InsertOrEditTable(_editor, this); FocusEditor(); });
             _cTable.Structural = true;
+            _cImage = Reg("Bild…", CS, Key.I, InsertImage);
+            _cImage.Structural = true;
             _cBullet = Fmt("Aufzählung", CS, Key.D8, Formatter.ToggleBullet, null);
-            _cOrdered = Fmt("Nummerierte Liste", CS, Key.D7, Formatter.ToggleOrdered, null);
+            _cOrdered = Fmt("Nummerierung", CS, Key.D7, Formatter.ToggleOrdered, null);
             _cTask = Fmt("Aufgabenliste", CS, Key.T, Formatter.ToggleTask, null);
+            _cTaskDone = Fmt("Aufgabe erledigt", C, Key.Enter, Formatter.ToggleTaskDone, pv => pv.ToggleTaskDone());
+            _cIndent = Fmt("Einrücken", N, Key.None, ed => ed.HandleTab(false), pv => pv.Indent(false));
+            _cIndent.Gesture = "Tab";
+            _cOutdent = Fmt("Ausrücken", N, Key.None, ed => ed.HandleTab(true), pv => pv.Indent(true));
+            _cOutdent.Gesture = "Umschalt+Tab";
             _cQuote = Fmt("Zitat", CS, Key.Q, Formatter.ToggleQuote, null);
             _cCodeBlock = Fmt("Codeblock", CS, Key.K, Formatter.ToggleCodeBlock, null);
 
@@ -296,7 +311,6 @@ namespace MarkdownEditor
             Reg("Vergrößern", C, Key.Add, delegate { Zoom(1); });
             Reg("Verkleinern", C, Key.Subtract, delegate { Zoom(-1); });
 
-            InitAiCommands();
             InitDictationCommands();
         }
 
@@ -357,7 +371,7 @@ namespace MarkdownEditor
                 Execute(c);
                 return;
             }
-            if (key == Key.Escape && (TryCancelDictation() || TryCancelAi()))
+            if (key == Key.Escape && TryCancelDictation())
             {
                 e.Handled = true;
                 return;
@@ -379,12 +393,8 @@ namespace MarkdownEditor
 
         static string GestureText(Cmd c)
         {
-            if (c.Key == Key.None)
-            {
-                if (c.Header == "Rückgängig") return "Strg+Z";
-                if (c.Header == "Wiederholen") return "Strg+Y";
-                return "";
-            }
+            if (c.Gesture != null) return c.Gesture;
+            if (c.Key == Key.None) return "";
             string s = "";
             if ((c.Mods & ModifierKeys.Control) != 0) s += "Strg+";
             if ((c.Mods & ModifierKeys.Shift) != 0) s += "Umschalt+";
@@ -394,6 +404,8 @@ namespace MarkdownEditor
             else if (k >= Key.NumPad0 && k <= Key.NumPad9) s += "Num " + ((int)k - (int)Key.NumPad0);
             else if (k == Key.OemPlus || k == Key.Add) s += "+";
             else if (k == Key.OemMinus || k == Key.Subtract) s += "−";
+            else if (k == Key.Space) s += "Leertaste";
+            else if (k == Key.Enter) s += "Enter";
             else s += k.ToString();
             return s;
         }
@@ -447,11 +459,17 @@ namespace MarkdownEditor
             edit.Items.Add(MI(_cFindNext));
             menu.Items.Add(edit);
 
+            // Neu aufbauen beim Öffnen, damit Häkchen und Tabellen-Eintrag zum Cursor passen
             var format = new MenuItem { Header = "_Format" };
-            AddFormatItems(format.Items, false);
+            AddFormatItems(format.Items);
+            format.SubmenuOpened += (s, e) =>
+            {
+                if (e.OriginalSource != format) return;
+                format.Items.Clear();
+                AddFormatItems(format.Items);
+            };
             menu.Items.Add(format);
 
-            menu.Items.Add(BuildAiMenu());
             menu.Items.Add(BuildDictationMenu());
 
             var view = new MenuItem { Header = "_Ansicht" };
@@ -512,44 +530,136 @@ namespace MarkdownEditor
             items.Add(new MenuItem { Header = "Alles auswählen", Command = ApplicationCommands.SelectAll, CommandTarget = target, InputGestureText = "Strg+A" });
         }
 
-        /// <summary>Gemeinsame Formatierungseinträge für Menüleiste und Kontextmenüs.</summary>
-        void AddFormatItems(ItemCollection items, bool contextual)
+        /// <summary>
+        /// Formatierungsgruppen für Menüleiste und Kontextmenüs. Häkchen zeigen die Absatzart am Cursor,
+        /// Listenbefehle sind nur in Listen aktiv, in Tabellen gibt es „Tabelle bearbeiten…“.
+        /// </summary>
+        void AddFormatItems(ItemCollection items)
         {
-            items.Add(MI(_cH1));
-            items.Add(MI(_cH2));
-            items.Add(MI(_cH3));
-            items.Add(MI(_cNormal));
-            items.Add(new Separator());
-            items.Add(MI(_cBold));
-            items.Add(MI(_cItalic));
-            items.Add(MI(_cUnderline));
-            items.Add(MI(_cStrike));
-            items.Add(MI(_cCode));
-            items.Add(new Separator());
-            items.Add(MI(_cEmoji));
-            items.Add(MI(_cRule));
-            MenuItem table = MI(_cTable);
-            if (contextual && CaretInTable()) table.Header = "Tabelle bearbeiten…";
-            items.Add(table);
+            string kind = CaretBlockKind();
+            bool inList = kind == "bullet" || kind == "ordered" || kind == "task" || kind == "done";
 
-            var more = new MenuItem { Header = "Weitere" };
-            more.Items.Add(MI(_cBullet));
-            more.Items.Add(MI(_cOrdered));
-            more.Items.Add(MI(_cTask));
-            more.Items.Add(MI(_cQuote));
-            more.Items.Add(MI(_cCodeBlock));
-            more.Items.Add(MI(_cLink));
-            items.Add(more);
+            var font = new MenuItem { Header = "Schrift" };
+            font.Items.Add(MI(_cBold));
+            font.Items.Add(MI(_cItalic));
+            font.Items.Add(MI(_cUnderline));
+            font.Items.Add(MI(_cStrike));
+            font.Items.Add(MI(_cCode));
+            font.Items.Add(new Separator());
+            font.Items.Add(MI(_cClear));
+            items.Add(font);
+
+            var level = new MenuItem { Header = "Textebene" };
+            level.Items.Add(Opt(_cNormal, kind == "p"));
+            for (int i = 0; i < _cHeadings.Length; i++) level.Items.Add(Opt(_cHeadings[i], kind == "h" + (i + 1)));
+            level.Items.Add(new Separator());
+            level.Items.Add(Opt(_cQuote, kind == "quote"));
+            level.Items.Add(Opt(_cCodeBlock, kind == "code"));
+            items.Add(level);
+
+            var lists = new MenuItem { Header = "Listen" };
+            lists.Items.Add(Opt(_cBullet, kind == "bullet"));
+            lists.Items.Add(Opt(_cOrdered, kind == "ordered"));
+            lists.Items.Add(Opt(_cTask, kind == "task" || kind == "done"));
+            lists.Items.Add(new Separator());
+            MenuItem done = Opt(_cTaskDone, kind == "done");
+            done.IsEnabled = kind == "task" || kind == "done";
+            lists.Items.Add(done);
+            MenuItem indent = MI(_cIndent), outdent = MI(_cOutdent);
+            indent.IsEnabled = outdent.IsEnabled = inList;
+            lists.Items.Add(indent);
+            lists.Items.Add(outdent);
+            items.Add(lists);
+
+            var insert = new MenuItem { Header = "Hinzufügen" };
+            insert.Items.Add(MI(_cLink));
+            insert.Items.Add(MI(_cImage));
+            insert.Items.Add(MI(_cEmoji));
+            insert.Items.Add(MI(_cRule));
+            if (kind != "table") insert.Items.Add(MI(_cTable));
+            items.Add(insert);
+
+            if (kind == "table")
+            {
+                MenuItem table = MI(_cTable);
+                table.Header = "Tabelle bearbeiten…";
+                items.Add(table);
+            }
         }
 
-        bool CaretInTable()
+        MenuItem Opt(Cmd c, bool active)
         {
-            if (_previewActive)
+            MenuItem mi = MI(c);
+            mi.IsChecked = active;
+            return mi;
+        }
+
+        /// <summary>Absatzart am Cursor: "p", "h1"…"h6", "quote", "code", "bullet", "ordered", "task", "done" oder "table".</summary>
+        string CaretBlockKind()
+        {
+            if (_previewActive && _previewHost.Visibility == Visibility.Visible)
             {
                 BlockInfo info = _preview.InfoOf(_preview.TopLevelBlockAtCaret());
-                return info != null && info.Kind == BlockKind.Table;
+                if (info == null) return "p";
+                switch (info.Kind)
+                {
+                    case BlockKind.Heading: return "h" + info.Level;
+                    case BlockKind.Quote: return "quote";
+                    case BlockKind.Code: return "code";
+                    case BlockKind.Table: return "table";
+                    case BlockKind.List:
+                        Paragraph p = _preview.CaretPosition.Paragraph;
+                        if (p == null) return "bullet";
+                        bool done;
+                        if (PreviewEditorBox.IsTask(p, out done)) return done ? "done" : "task";
+                        var item = p.Parent as ListItem;
+                        return item != null && item.List != null && item.List.MarkerStyle == TextMarkerStyle.Decimal ? "ordered" : "bullet";
+                    default: return "p";
+                }
             }
-            return Formatter.IsInTable(_editor);
+
+            int line = _editor.CaretPos().Line;
+            LineInfo[] infos = _editor.LineInfos;
+            if (line < 0 || line >= infos.Length) return "p";
+            LineInfo li = infos[line];
+            switch (li.Kind)
+            {
+                case LineKind.Heading: return "h" + li.Level;
+                case LineKind.Quote: return "quote";
+                case LineKind.Fence: case LineKind.Code: return "code";
+                case LineKind.Ordered: return "ordered";
+                case LineKind.TableHeader: case LineKind.TableSeparator: case LineKind.TableRow: return "table";
+                case LineKind.Bullet:
+                    string s = _editor.LineText(line);
+                    string prefix = s.Substring(0, Math.Min(li.PrefixLength, s.Length));
+                    if (prefix.Contains("[ ]")) return "task";
+                    if (prefix.Contains("[x]") || prefix.Contains("[X]")) return "done";
+                    return "bullet";
+                default: return "p";
+            }
+        }
+
+        /// <summary>Bild auswählen und als ![Name](Pfad) einfügen – relativ zur Notiz, wenn sie schon gespeichert ist.</summary>
+        void InsertImage()
+        {
+            var dlg = new OpenFileDialog
+            {
+                Title = "Bild einfügen",
+                Filter = "Bilder|*.png;*.jpg;*.jpeg;*.gif;*.bmp;*.webp|Alle Dateien|*.*",
+                InitialDirectory = CurrentFolder()
+            };
+            if (dlg.ShowDialog(this) != true) { FocusEditor(); return; }
+
+            string url = dlg.FileName;
+            if (_path != null)
+            {
+                var baseUri = new Uri(Path.GetDirectoryName(_path).TrimEnd('\\') + "\\");
+                Uri rel = baseUri.MakeRelativeUri(new Uri(dlg.FileName));
+                if (!rel.IsAbsoluteUri) url = Uri.UnescapeDataString(rel.OriginalString);
+            }
+            url = url.Replace('\\', '/').Replace(" ", "%20").Replace("(", "%28").Replace(")", "%29");
+            Formatter.InsertImage(_editor, Path.GetFileNameWithoutExtension(dlg.FileName), url);
+            FocusEditor();
         }
 
         void BuildContextMenu(ContextMenu menu, bool forPreview)
@@ -577,11 +687,9 @@ namespace MarkdownEditor
                 }
             }
 
-            AddFormatItems(menu.Items, true);
+            AddFormatItems(menu.Items);
+            menu.Items.Add(new Separator());
             menu.Items.Add(MI(_cDictate));
-            var ai = new MenuItem { Header = "KI" };
-            AddAiItems(ai.Items);
-            menu.Items.Add(ai);
             menu.Items.Add(new Separator());
             AddClipboardItems(menu.Items, box);
         }
@@ -1541,11 +1649,10 @@ namespace MarkdownEditor
                 string entry = g.PadRight(22) + c.Header;
                 if (!lines.Contains(entry)) lines.Add(entry);
             }
-            lines.Add("Tab / Umschalt+Tab".PadRight(22) + "Listen ein-/ausrücken");
             lines.Add("Strg+Mausrad".PadRight(22) + "Zoom");
             lines.Add("Strg+Klick".PadRight(22) + "Link in der Vorschau öffnen");
             lines.Add("Rechtsklick".PadRight(22) + "Formatierungsmenü (Markdown und Vorschau)");
-            lines.Add("Esc".PadRight(22) + "Laufende KI-Anfrage / Diktat abbrechen");
+            lines.Add("Esc".PadRight(22) + "Diktat abbrechen, Suche schließen, Vollbild beenden");
             MessageBox.Show(this, string.Join("\n", lines), "Tastenkürzel – " + AppName);
         }
 

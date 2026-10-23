@@ -257,6 +257,69 @@ namespace MarkdownEditor.Editor
             }
         }
 
+        /// <summary>Entfernt Zeichenformatierungen in der Auswahl (ohne Auswahl: im ganzen Absatz); Links bleiben.</summary>
+        public void ClearFormatting()
+        {
+            Paragraph p = Selection.Start.Paragraph;
+            if (p == null) return;
+            TextRange range = Selection.IsEmpty ? new TextRange(p.ContentStart, p.ContentEnd) : Selection;
+            // Werte des Absatzes übernehmen, damit Überschriften ihre Darstellung behalten
+            range.ApplyPropertyValue(TextElement.FontWeightProperty, p.FontWeight);
+            range.ApplyPropertyValue(TextElement.FontStyleProperty, p.FontStyle);
+            range.ApplyPropertyValue(TextElement.FontFamilyProperty, p.FontFamily);
+            range.ApplyPropertyValue(TextElement.ForegroundProperty, p.Foreground);
+            range.ApplyPropertyValue(TextElement.BackgroundProperty, null);
+            range.ApplyPropertyValue(Inline.TextDecorationsProperty, null);
+        }
+
+        /// <summary>Aufgabe am Cursor abhaken bzw. wieder öffnen (☐ ↔ ☑).</summary>
+        public void ToggleTaskDone()
+        {
+            Paragraph p = CaretPosition.Paragraph;
+            bool done;
+            if (p == null || !IsTask(p, out done)) return;
+            Inline first = FirstLeaf(p);
+            var run = first as Run;
+            if (run != null)
+            {
+                run.Text = (done ? "☐" : "☑") + run.Text.Substring(1);
+                return;
+            }
+            // ☑ wird als Emoji-Bild dargestellt
+            first.SiblingInlines.InsertBefore(first, new Run("☐"));
+            first.SiblingInlines.Remove(first);
+        }
+
+        /// <summary>Ist <paramref name="p"/> ein Aufgabenpunkt (beginnt mit ☐ bzw. ☑, auch als Emoji-Bild)?</summary>
+        public static bool IsTask(Paragraph p, out bool done)
+        {
+            done = false;
+            Inline first = FirstLeaf(p);
+            var run = first as Run;
+            if (run != null && run.Text.Length > 0)
+            {
+                done = run.Text[0] == '☑';
+                return done || run.Text[0] == '☐';
+            }
+            var iuc = first as InlineUIContainer;
+            var tag = iuc != null ? iuc.Tag as InlineTag : null;
+            done = tag != null && tag.Markdown.StartsWith("☑");
+            return done;
+        }
+
+        static Inline FirstLeaf(Paragraph p)
+        {
+            Inline i = p.Inlines.FirstInline;
+            while (i is Span) i = ((Span)i).Inlines.FirstInline;
+            return i;
+        }
+
+        /// <summary>Listenpunkt ein- bzw. ausrücken.</summary>
+        public void Indent(bool outdent)
+        {
+            (outdent ? EditingCommands.DecreaseIndentation : EditingCommands.IncreaseIndentation).Execute(null, this);
+        }
+
         public void InsertEmoji(string symbol)
         {
             if (!Selection.IsEmpty) Selection.Text = "";

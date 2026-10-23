@@ -93,7 +93,7 @@ namespace MarkdownEditor
 
             // 4. Überschrift in der Vorschau
             _preview.Selection.Select(p.ContentEnd, p.ContentEnd);
-            Execute(_cH2);
+            Execute(_cHeadings[1]);
             SyncFromPreview();
             Check("Überschrift 2 aus Vorschau → ##", _editor.GetLines().Contains("## Weiterer Text. Neu aus der **Vorschau**"), Last(2));
 
@@ -160,18 +160,66 @@ namespace MarkdownEditor
             Emoji grin = EmojiCatalog.Find("😀");
             Check("Emoji-Name deutsch", grin != null && grin.Name.Length > 0, grin != null ? grin.Name : null);
 
-            // 12. KI-Ergebnis übernehmen (ohne Netzwerk, mit festem Ergebnis)
-            _editor.SetText("# Titel\nZeile eins\nZeile zwei");
-            List<string> aiLines = _editor.GetLines();
-            Check("KI: Auswahltext über Zeilen", TextBetween(aiLines, new TextPos(1, 6), new TextPos(2, 5)) == "eins\nZeile", null);
-            ApplyAiResult(AiResultAction.Replace, new TextPos(0, 0), new TextPos(2, 10), "## Neu\n- Punkt");
-            Check("KI: Notiz ersetzt", _editor.GetText() == "## Neu\n- Punkt", _editor.GetText());
-            _editor.Undo();
-            Check("KI: ein Strg+Z stellt das Original her", _editor.GetText() == "# Titel\nZeile eins\nZeile zwei", _editor.GetText());
-            ApplyAiResult(AiResultAction.Insert, new TextPos(1, 0), new TextPos(1, 10), "Zusatz");
-            Check("KI: nach Auswahl eingefügt", _editor.GetText() == "# Titel\nZeile eins\n\nZusatz\nZeile zwei", _editor.GetText());
-            string sealedKey = Dpapi.Protect("sk-ant-test");
-            Check("KI: Schlüssel per DPAPI verschlüsselt", !string.IsNullOrEmpty(sealedKey) && !sealedKey.Contains("sk-ant") && Dpapi.Unprotect(sealedKey) == "sk-ant-test", null);
+            // 12. Befehle aus dem Format-Menü: Formatierung entfernen, Aufgaben, Ein-/Ausrücken, Bild, Absatzart
+            _previewActive = false;
+            _editor.SetText("Das ist **fett**, *kursiv*, ~~weg~~ und `code` mit snake_case_name und [Link](https://x.de)");
+            _editor.SetCaret(new TextPos(0, 3));
+            Formatter.ClearFormatting(_editor);
+            Check("Formatierung entfernen (Zeile)", _editor.GetText() == "Das ist fett, kursiv, weg und code mit snake_case_name und [Link](https://x.de)", _editor.GetText());
+            _editor.SetText("A **fett** B");
+            _editor.Select(new TextPos(0, 4), new TextPos(0, 8));
+            Formatter.ClearFormatting(_editor);
+            Check("Formatierung entfernen (Auswahl innerhalb)", _editor.GetText() == "A fett B", _editor.GetText());
+            _editor.SetText("- [ ] eins\n- [x] zwei\n- drei");
+            _editor.Select(new TextPos(0, 0), new TextPos(2, 6));
+            Formatter.ToggleTaskDone(_editor);
+            Check("Aufgaben abhaken/öffnen", _editor.GetText() == "- [x] eins\n- [ ] zwei\n- drei", _editor.GetText());
+            _editor.SetCaret(new TextPos(0, 8));
+            Check("Absatzart am Cursor: erledigte Aufgabe", CaretBlockKind() == "done", CaretBlockKind());
+            _editor.SetCaret(new TextPos(2, 6));
+            Check("Absatzart am Cursor: Aufzählung", CaretBlockKind() == "bullet", CaretBlockKind());
+            Execute(_cIndent);
+            Check("Einrücken", _editor.LineText(2) == "  - drei", _editor.LineText(2));
+            Execute(_cOutdent);
+            Check("Ausrücken", _editor.LineText(2) == "- drei", _editor.LineText(2));
+            _editor.SetText("Bild:");
+            _editor.SetCaret(new TextPos(0, 5));
+            Formatter.InsertImage(_editor, "Foto [1]", "bilder/foto%201.png");
+            Check("Bild einfügen", _editor.GetText() == "Bild: ![Foto 1](bilder/foto%201.png)", _editor.GetText());
+
+            _editor.SetText("- [ ] Aufgabe\n\nA **fett** und *kursiv* und ~~weg~~");
+            RenderPreview(_editor.GetLines());
+            _previewActive = true;
+            List taskList = _preview.Document.Blocks.OfType<List>().FirstOrDefault();
+            Paragraph taskPara = taskList != null ? taskList.ListItems.FirstListItem.Blocks.FirstBlock as Paragraph : null;
+            if (taskPara != null)
+            {
+                TextPointer taskEnd = taskPara.ContentEnd.GetInsertionPosition(LogicalDirection.Backward);
+                _preview.Selection.Select(taskEnd, taskEnd);
+                Check("Vorschau: Absatzart Aufgabe", CaretBlockKind() == "task", CaretBlockKind());
+                Execute(_cTaskDone);
+                SyncFromPreview();
+                Check("Vorschau: Aufgabe abhaken → [x]", _editor.LineText(0) == "- [x] Aufgabe", _editor.LineText(0));
+                RenderPreview(_editor.GetLines());
+                taskPara = (Paragraph)_preview.Document.Blocks.OfType<List>().First().ListItems.FirstListItem.Blocks.FirstBlock;
+                taskEnd = taskPara.ContentEnd.GetInsertionPosition(LogicalDirection.Backward);
+                _preview.Selection.Select(taskEnd, taskEnd);
+                Check("Vorschau: Absatzart erledigt (☑ als Emoji-Bild)", CaretBlockKind() == "done", CaretBlockKind());
+                Execute(_cTaskDone);
+                SyncFromPreview();
+                Check("Vorschau: Aufgabe wieder öffnen → [ ]", _editor.LineText(0) == "- [ ] Aufgabe", _editor.LineText(0));
+            }
+            else Check("Vorschau: Aufgabenliste gefunden", false, null);
+            Paragraph fmtPara = FindParagraph("A fett");
+            if (fmtPara != null)
+            {
+                _preview.Selection.Select(fmtPara.ContentEnd, fmtPara.ContentEnd);
+                Execute(_cClear);
+                SyncFromPreview();
+                Check("Vorschau: Formatierung entfernen", _editor.GetLines().Contains("A fett und kursiv und weg"), Last(1));
+            }
+            else Check("Vorschau: formatierter Absatz gefunden", false, null);
+            _previewActive = false;
 
             // 13. Diktat (ohne Mikrofon/whisper: Aufbereitung, WAV-Format, Einfügen)
             string dp = DictationPostProcessor.Process("[BLANK_AUDIO]\n Erster Gedanke.\n (Musik) Zweiter Gedanke. ", true);

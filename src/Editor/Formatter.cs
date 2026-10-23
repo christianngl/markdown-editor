@@ -127,6 +127,48 @@ namespace MarkdownEditor.Editor
             ed.Select(new TextPos(a.Line, s0 + m), new TextPos(a.Line, s1 + m));
         }
 
+        /// <summary>
+        /// Entfernt Fett, Kursiv, Unterstrichen, Durchgestrichen und Inline-Code in der Auswahl
+        /// (ohne Auswahl: in der ganzen Zeile). Links und Zeilenpräfixe bleiben erhalten.
+        /// </summary>
+        public static void ClearFormatting(MarkdownEditorBox ed)
+        {
+            TextPos a, b;
+            ed.GetSelection(out a, out b);
+            bool wholeLine = a.Line == b.Line && a.Col == b.Col;
+            List<string> lines = ed.GetLines();
+            LineInfo[] infos = ed.LineInfos;
+            var result = new List<string>();
+            int selStart = 0, selEnd = 0;
+            for (int i = a.Line; i <= b.Line; i++)
+            {
+                string s = lines[i];
+                LineInfo info = Info(infos, i);
+                int prefix = Math.Min(info.PrefixLength, s.Length);
+                int from = wholeLine || i != a.Line ? 0 : a.Col;
+                int to = wholeLine || i != b.Line ? s.Length : Math.Min(b.Col, s.Length);
+                from = Math.Max(from, prefix);
+                to = Math.Max(from, to);
+                // Markierungen direkt um die Auswahl mitnehmen („fett“ in **fett** markiert)
+                while (from > prefix && "*_~`".IndexOf(s[from - 1]) >= 0) from--;
+                while (to < s.Length && "*_~`".IndexOf(s[to]) >= 0) to++;
+                string inner = info.IsCode || info.Kind == LineKind.Fence ? s.Substring(from, to - from) : StripInline(s.Substring(from, to - from));
+                if (i == a.Line) selStart = from;
+                if (i == b.Line) selEnd = from + inner.Length;
+                result.Add(s.Substring(0, from) + inner + s.Substring(to));
+            }
+            ed.ReplaceLines(a.Line, b.Line, result);
+            if (wholeLine) ed.SetCaret(new TextPos(a.Line, Math.Min(a.Col, result[0].Length)));
+            else ed.Select(new TextPos(a.Line, selStart), new TextPos(b.Line, selEnd));
+        }
+
+        static string StripInline(string t)
+        {
+            t = Regex.Replace(t, @"(\*\*|__|~~)(?=\S)(.+?)(?<=\S)\1", "$2");
+            t = Regex.Replace(t, @"`([^`]+)`", "$1");
+            return Regex.Replace(t, @"(?<![\\\w*])([*_])(?=\S)(.+?)(?<=\S)\1(?![\w*])", "$2");
+        }
+
         static void WrapLines(MarkdownEditorBox ed, TextPos a, TextPos b, string marker)
         {
             List<string> lines = ed.GetLines();
@@ -223,6 +265,34 @@ namespace MarkdownEditor.Editor
             ed.SetCaret(end);
         }
 
+        static readonly Regex TaskBoxRx = new Regex(@"^\s*[-*+]\s+\[([ xX])\]");
+
+        /// <summary>Hakt die Aufgaben in der Auswahl ab bzw. öffnet sie wieder (- [ ] ↔ - [x]).</summary>
+        public static void ToggleTaskDone(MarkdownEditorBox ed)
+        {
+            TextPos a, b;
+            ed.GetSelection(out a, out b);
+            List<string> lines = ed.GetLines();
+            var result = new List<string>();
+            bool any = false;
+            for (int i = a.Line; i <= b.Line; i++)
+            {
+                string s = lines[i];
+                Match m = TaskBoxRx.Match(s);
+                if (m.Success)
+                {
+                    int at = m.Groups[1].Index;
+                    s = s.Substring(0, at) + (m.Groups[1].Value == " " ? "x" : " ") + s.Substring(at + 1);
+                    any = true;
+                }
+                result.Add(s);
+            }
+            if (!any) return;
+            ed.ReplaceLines(a.Line, b.Line, result);
+            if (a.Line == b.Line && a.Col == b.Col) ed.SetCaret(a);
+            else ed.Select(a, b);
+        }
+
         public static void ToggleCodeBlock(MarkdownEditorBox ed)
         {
             TextPos a, b;
@@ -266,6 +336,22 @@ namespace MarkdownEditor.Editor
                 int urlStart = a.Col + sel.Length + 3;
                 ed.Select(new TextPos(a.Line, urlStart), new TextPos(a.Line, urlStart + 8));
             }
+        }
+
+        /// <summary>
+        /// Fügt ![alt](url) hinter der Auswahl ein. Die Auswahl selbst bleibt stehen – aus der Vorschau
+        /// heraus umfasst sie den ganzen Block, das Bild landet dann an dessen Ende.
+        /// </summary>
+        public static void InsertImage(MarkdownEditorBox ed, string alt, string url)
+        {
+            TextPos a, b;
+            ed.GetSelection(out a, out b);
+            string line = ed.LineText(b.Line);
+            int col = Math.Min(b.Col, line.Length);
+            string md = "![" + alt.Replace("[", "").Replace("]", "") + "](" + url + ")";
+            if (col > 0 && !char.IsWhiteSpace(line[col - 1])) md = " " + md;
+            ed.Replace(new TextPos(b.Line, col), new TextPos(b.Line, col), md);
+            ed.SetCaret(new TextPos(b.Line, col + md.Length));
         }
 
         // ---------------------------------------------------------------- Tabellen

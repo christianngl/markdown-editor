@@ -33,26 +33,11 @@ namespace MarkdownEditor.Services
         public bool Maximized;
         public string LastFolder;
 
-        /// <summary>Claude-API-Schlüssel (in der Datei per DPAPI verschlüsselt).</summary>
-        public string ApiKey;
-        public string AiModel = DefaultAiModel;
-        public const string DefaultAiModel = "claude-sonnet-5-5";
-
         /// <summary>Diktat (lokal mit whisper.cpp): Mikrofon (−1 = Standardgerät), Modell, Sprache, Sprachbefehle.</summary>
         public int DictationDevice = -1;
         public string DictationModel = WhisperTranscriber.DefaultModel;
         public string DictationLanguage = "de";
         public bool DictationVoiceCommands = true;
-
-        /// <summary>Gespeicherter Schlüssel, sonst die Umgebungsvariable ANTHROPIC_API_KEY.</summary>
-        public string EffectiveApiKey
-        {
-            get
-            {
-                if (!string.IsNullOrWhiteSpace(ApiKey)) return ApiKey;
-                return Environment.GetEnvironmentVariable("ANTHROPIC_API_KEY");
-            }
-        }
 
         /// <summary>Alle bekannten Dateien, zuletzt verwendete zuerst.</summary>
         public readonly List<KnownFile> KnownFiles = new List<KnownFile>();
@@ -95,8 +80,6 @@ namespace MarkdownEditor.Services
                         case "Height": s.Height = ParseDouble(value, s.Height); break;
                         case "Maximized": s.Maximized = value == "1"; break;
                         case "LastFolder": s.LastFolder = value; break;
-                        case "ApiKey": s.ApiKey = Dpapi.Unprotect(value); break;
-                        case "AiModel": if (value.Length > 0) s.AiModel = value; break;
                         case "DictationDevice": { int d; if (int.TryParse(value, out d)) s.DictationDevice = d; break; }
                         case "DictationModel": if (value.Length > 0) s.DictationModel = value; break;
                         case "DictationLanguage": if (value.Length > 0) s.DictationLanguage = value; break;
@@ -145,16 +128,10 @@ namespace MarkdownEditor.Services
                 sb.AppendLine("Height=" + Height.ToString(CultureInfo.InvariantCulture));
                 sb.AppendLine("Maximized=" + B(Maximized));
                 sb.AppendLine("LastFolder=" + (LastFolder ?? ""));
-                sb.AppendLine("AiModel=" + (AiModel ?? DefaultAiModel));
                 sb.AppendLine("DictationDevice=" + DictationDevice.ToString(CultureInfo.InvariantCulture));
                 sb.AppendLine("DictationModel=" + (DictationModel ?? WhisperTranscriber.DefaultModel));
                 sb.AppendLine("DictationLanguage=" + (DictationLanguage ?? "de"));
                 sb.AppendLine("DictationVoiceCommands=" + B(DictationVoiceCommands));
-                if (!string.IsNullOrEmpty(ApiKey))
-                {
-                    string protectedKey = Dpapi.Protect(ApiKey);
-                    if (!string.IsNullOrEmpty(protectedKey)) sb.AppendLine("ApiKey=" + protectedKey);
-                }
                 foreach (KnownFile f in KnownFiles) sb.AppendLine("File=" + f.LastUsed.Ticks + "|" + f.Path);
                 foreach (string e in RecentEmojis) sb.AppendLine("Emoji=" + e);
                 File.WriteAllText(FilePath, sb.ToString(), new UTF8Encoding(false));

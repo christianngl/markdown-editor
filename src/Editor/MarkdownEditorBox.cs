@@ -561,7 +561,7 @@ namespace MarkdownEditor.Editor
         }
 
         /// <summary>Tab: in Listen bzw. bei Mehrzeilenauswahl einrücken, sonst Tabulator.</summary>
-        void HandleTab(bool outdent)
+        internal void HandleTab(bool outdent)
         {
             TextPos a, b;
             GetSelection(out a, out b);
