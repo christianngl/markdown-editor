@@ -43,6 +43,12 @@ Der Code ist bewusst C#-5-kompatibel, damit beide Wege funktionieren.
 
 Die EXE ist portabel. Einstellungen und Dateiliste liegen unter `%APPDATA%\MarkdownEditor\settings.ini`.
 
+**Updates:** Beim Start (abschaltbar unter *Hilfe → Beim Start nach Updates suchen*) und über *Hilfe → Nach Updates suchen…* fragt
+der Editor das neueste [GitHub-Release](https://github.com/christianngl/markdown-editor/releases) ab. Ist es neuer als die eigene Version,
+zeigt er die Änderungen und tauscht auf Wunsch die EXE aus (die alte bleibt als `MarkdownEditor.exe.old` liegen) und startet neu.
+Weil das Repo privat ist, nutzt er das Token der angemeldeten GitHub-CLI (`gh auth login`) oder `GH_TOKEN`/`GITHUB_TOKEN`.
+Die eigene Version übernimmt `build.ps1` aus dem neuesten Versionsabschnitt in `CHANGELOG.md`.
+
 **Als Standard-App für Textformate** (`.md`, `.markdown`, `.mdown`, `.mkd`, `.mkdn`, `.txt`; pro Gerät einmal, auch nach einem Umzug des Ordners):
 `powershell -ExecutionPolicy Bypass -File .\tools\register-file-types.ps1`. Das Skript registriert `bin\MarkdownEditor.exe`
 für den aktuellen Benutzer und entfernt Einträge alter Versionen, deren EXE nicht mehr existiert. Diese erscheinen sonst als
@@ -94,6 +100,7 @@ MarkdownEditor/
    ├─ Program.cs                Einstiegspunkt, globale Fehlerbehandlung, --selftest
    ├─ MainWindow.cs             Layout, Menüs, Befehle (Routing ins aktive Feld), Dateien, Seitenleiste, Sync Markdown ↔ Vorschau
    ├─ MainWindow.Dictation.cs   Diktat: Aufnahme, lokale Transkription (whisper.cpp), Einfügen am Cursor
+   ├─ MainWindow.Update.cs      Update-Suche beim Start und im Hilfe-Menü
    ├─ SelfTest.cs               interner Selbsttest
    ├─ Editor/
    │  ├─ MarkdownEditorBox.cs   Markdown-Editor: Zeilenmodell, Live-Formatierung, Undo/Redo, Enter/Tab, Suche, ApplyExternalText
@@ -109,7 +116,7 @@ MarkdownEditor/
    ├─ Dialogs/                  TableDialog, EmojiPicker, InputDialog, DictationSettingsDialog
    ├─ Themes/                   Theme/ThemeCatalog, ThemeManager, Styles (XAML)
    └─ Services/                 AppSettings (inkl. Dateiliste), DocumentFile, AudioRecorder,
-                                WhisperTranscriber, DictationPostProcessor
+                                WhisperTranscriber, DictationPostProcessor, UpdateService (GitHub-Releases)
 ```
 
 ## Architektur in Kürze

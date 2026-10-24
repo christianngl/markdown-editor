@@ -13,7 +13,7 @@ if ((Test-Path (Join-Path $root '.git')) -and -not (git -C $root status --porcel
 }
 
 $quellen = @(Get-ChildItem (Join-Path $root 'src'), (Join-Path $root 'assets') -Recurse -File -ErrorAction SilentlyContinue) +
-           @(Get-Item (Join-Path $root 'build.ps1'), (Join-Path $root 'app.manifest'), (Join-Path $root 'MarkdownEditor.csproj') -ErrorAction SilentlyContinue)
+           @(Get-Item (Join-Path $root 'build.ps1'), (Join-Path $root 'app.manifest'), (Join-Path $root 'MarkdownEditor.csproj'), (Join-Path $root 'CHANGELOG.md') -ErrorAction SilentlyContinue)
 $neueste = ($quellen | Measure-Object LastWriteTime -Maximum).Maximum
 if (-not (Test-Path $exe) -or $neueste -gt (Get-Item $exe).LastWriteTime) {
     try { & (Join-Path $root 'build.ps1') | Out-Null } catch { }   # schlaegt fehl, wenn der Editor gerade laeuft: dann alte exe starten

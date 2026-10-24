@@ -241,6 +241,7 @@ namespace MarkdownEditor
                 if (fileToOpen != null) OpenFile(fileToOpen);
                 else NewDocument();
                 FocusEditor();
+                if (!AppSettings.ReadOnly && _settings.UpdateCheckOnStart) CheckForUpdates(false);
             };
         }
 
@@ -514,12 +515,14 @@ namespace MarkdownEditor
             help.Items.Add(MI("Tastenkürzel", ShowShortcuts));
             help.Items.Add(MI("Markdown-Spickzettel einfügen", InsertCheatSheet));
             help.Items.Add(new Separator());
+            AddUpdateItems(help.Items);
+            help.Items.Add(new Separator());
             help.Items.Add(MI("Über " + AppName, delegate
             {
                 MessageBox.Show(this,
                     AppName + "\nSchlanker Editor für Markdown-Dateien – Markdown und Vorschau sind beide bearbeitbar.\n\n" +
                     "Emoji-Grafiken: Microsoft Fluent Emoji (MIT-Lizenz) und Twemoji (CC-BY 4.0, © Twitter/X und Mitwirkende).\n" +
-                    "Emoji-Namen: Unicode CLDR.\n\n.NET Framework " + Environment.Version, AppName);
+                    "Emoji-Namen: Unicode CLDR.\n\nVersion " + UpdateService.CurrentVersion + " · .NET Framework " + Environment.Version, AppName);
             }));
             menu.Items.Add(help);
             return menu;
@@ -1174,7 +1177,7 @@ namespace MarkdownEditor
 
         protected override void OnClosing(CancelEventArgs e)
         {
-            if (!ConfirmDiscard())
+            if (!_closingForUpdate && !ConfirmDiscard())
             {
                 e.Cancel = true;
                 return;

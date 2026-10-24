@@ -38,6 +38,7 @@ namespace MarkdownEditor.Services
         public string DictationModel = WhisperTranscriber.DefaultModel;
         public string DictationLanguage = "de";
         public bool DictationVoiceCommands = true;
+        public bool UpdateCheckOnStart = true;
 
         /// <summary>Alle bekannten Dateien, zuletzt verwendete zuerst.</summary>
         public readonly List<KnownFile> KnownFiles = new List<KnownFile>();
@@ -84,6 +85,7 @@ namespace MarkdownEditor.Services
                         case "DictationModel": if (value.Length > 0) s.DictationModel = value; break;
                         case "DictationLanguage": if (value.Length > 0) s.DictationLanguage = value; break;
                         case "DictationVoiceCommands": s.DictationVoiceCommands = value == "1"; break;
+                        case "UpdateCheckOnStart": s.UpdateCheckOnStart = value == "1"; break;
                         case "Emoji": if (value.Length > 0) s.RecentEmojis.Add(value); break;
                         case "Recent": // Format der ersten Version
                             if (value.Length > 0) s.AddKnown(value, DateTime.Now.AddMinutes(-s.KnownFiles.Count), false);
@@ -132,6 +134,7 @@ namespace MarkdownEditor.Services
                 sb.AppendLine("DictationModel=" + (DictationModel ?? WhisperTranscriber.DefaultModel));
                 sb.AppendLine("DictationLanguage=" + (DictationLanguage ?? "de"));
                 sb.AppendLine("DictationVoiceCommands=" + B(DictationVoiceCommands));
+                sb.AppendLine("UpdateCheckOnStart=" + B(UpdateCheckOnStart));
                 foreach (KnownFile f in KnownFiles) sb.AppendLine("File=" + f.LastUsed.Ticks + "|" + f.Path);
                 foreach (string e in RecentEmojis) sb.AppendLine("Emoji=" + e);
                 File.WriteAllText(FilePath, sb.ToString(), new UTF8Encoding(false));

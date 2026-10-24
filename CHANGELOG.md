@@ -4,6 +4,8 @@ Alle nennenswerten Änderungen, neueste zuerst. Neue Einträge kommen unter „U
 
 ## [Unveröffentlicht]
 
+- Update-Suche: Der Editor prüft beim Start und über Hilfe → „Nach Updates suchen…“ auf ein neues GitHub-Release und installiert es auf Wunsch
+
 ## [0.1.0] – 2026-10-23
 
 - projekt.ini: Kommentare auf neuen Namen pinx (früher Projekt-Cockpit)

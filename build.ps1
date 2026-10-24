@@ -20,7 +20,24 @@ $refs = @(
     "$fw\System.Xaml.dll", "$fw\System.dll", "$fw\System.Core.dll", "$fw\System.Data.dll", "$fw\System.Xml.dll",
     "$fw\System.Runtime.Serialization.dll"
 )
-$sources = Get-ChildItem -Path (Join-Path $root 'src') -Recurse -Filter *.cs | ForEach-Object { $_.FullName }
+$sources = @(Get-ChildItem -Path (Join-Path $root 'src') -Recurse -Filter *.cs | ForEach-Object { $_.FullName })
+
+# Programmversion = neuester Versionsabschnitt in CHANGELOG.md (die Update-Suche vergleicht sie mit dem neuesten GitHub-Release)
+$version = '0.0.0'
+$changelog = Join-Path $root 'CHANGELOG.md'
+if (Test-Path $changelog) {
+    $m = Select-String -Path $changelog -Pattern '^## \[(\d+\.\d+\.\d+)\]' | Select-Object -First 1
+    if ($m) { $version = $m.Matches[0].Groups[1].Value }
+}
+$obj = Join-Path $root 'obj'
+New-Item -ItemType Directory -Force $obj | Out-Null
+$versionFile = Join-Path $obj 'AppVersion.g.cs'
+Set-Content -Path $versionFile -Encoding UTF8 -Value @(
+    "[assembly: System.Reflection.AssemblyVersion(""$version.0"")]",
+    "[assembly: System.Reflection.AssemblyFileVersion(""$version.0"")]",
+    "[assembly: System.Reflection.AssemblyInformationalVersion(""$version"")]",
+    "[assembly: System.Reflection.AssemblyProduct(""Markdown Editor"")]")
+$sources += $versionFile
 
 $cscArgs = @('/nologo', '/target:winexe', '/optimize+', '/codepage:65001', '/platform:anycpu',
              "/out:$out\MarkdownEditor.exe", "/win32manifest:$root\app.manifest")
@@ -35,5 +52,5 @@ $cscArgs += $sources
 if ($LASTEXITCODE -ne 0) { throw "Build fehlgeschlagen (Exit-Code $LASTEXITCODE)" }
 
 $exe = Get-Item "$out\MarkdownEditor.exe"
-Write-Host ("OK: {0}  ({1:N0} KB)" -f $exe.FullName, ($exe.Length / 1KB))
+Write-Host ("OK: {0}  ({1:N0} KB, Version {2})" -f $exe.FullName, ($exe.Length / 1KB), $version)
 if ($Run) { Start-Process $exe.FullName }
