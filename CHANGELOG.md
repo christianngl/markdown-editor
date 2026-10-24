@@ -4,6 +4,8 @@ Alle nennenswerten Änderungen, neueste zuerst. Neue Einträge kommen unter „U
 
 ## [Unveröffentlicht]
 
+## [0.2.0] – 2026-10-24
+
 - Update-Suche: Der Editor prüft beim Start und über Hilfe → „Nach Updates suchen…“ auf ein neues GitHub-Release und installiert es auf Wunsch
 
 ## [0.1.0] – 2026-10-23
