@@ -46,10 +46,13 @@ namespace MarkdownEditor.Services
         /// <summary>Zuletzt eingefügte Emojis (für „Häufig verwendet“).</summary>
         public readonly List<string> RecentEmojis = new List<string>();
 
+        /// <summary>MDEDITOR_DATEN setzt einen anderen Ordner, z. B. für Screenshots mit Beispieldateien statt der eigenen Liste.</summary>
         static string FilePath
         {
             get
             {
+                string dir = Environment.GetEnvironmentVariable("MDEDITOR_DATEN");
+                if (!string.IsNullOrEmpty(dir)) return Path.Combine(dir, "settings.ini");
                 return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "MarkdownEditor", "settings.ini");
             }
         }

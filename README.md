@@ -4,6 +4,12 @@ Schlanker Markdown-Editor für Windows (C# / WPF, eine EXE von ca. 6,6 MB, davon
 Links steht das Markdown, rechts die formatierte Vorschau. **Beide Seiten sind bearbeitbar**, und jede Änderung
 wird automatisch in die andere Seite übertragen. Gespeichert wird **immer reines Markdown**.
 
+![Markdown Editor, helles Theme](docs/screenshots/editor-hell.png)
+
+Dasselbe Beispiel im Theme „Minimal Dark“:
+
+![Markdown Editor, dunkles Theme](docs/screenshots/editor-dunkel.png)
+
 ## Funktionen
 
 | Bereich | Umfang |
@@ -42,6 +48,8 @@ Der Code ist bewusst C#-5-kompatibel, damit beide Wege funktionieren.
 (unsichtbar, ohne echte Eingaben, ohne Einstellungen zu ändern) und schreibt die Ergebnisse in `ergebnis.txt`.
 
 Die EXE ist portabel. Einstellungen und Dateiliste liegen unter `%APPDATA%\MarkdownEditor\settings.ini`.
+Mit der Umgebungsvariable `MDEDITOR_DATEN=<ordner>` nimmt das Programm stattdessen `<ordner>\settings.ini`,
+z. B. für Screenshots mit Beispieldateien statt der eigenen Dateiliste.
 
 **Updates:** Beim Start (abschaltbar unter *Hilfe → Beim Start nach Updates suchen*) und über *Hilfe → Nach Updates suchen…* fragt
 der Editor das neueste [GitHub-Release](https://github.com/christianngl/markdown-editor/releases) ab. Ist es neuer als die eigene Version,
