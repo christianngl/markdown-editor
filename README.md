@@ -22,6 +22,7 @@ Dasselbe Beispiel im Theme „Minimal Dark“:
 | Tabellen | Visueller Tabellen-Editor (Zeilen/Spalten, Ausrichtung). Gespeichert wird `Spalte 1 \| Spalte 2` / `--- \| ---` als ausgerichteter Fließtext. Zeilen und Spalten lassen sich auch per Rechtsklick in der Zelle einfügen/löschen |
 | Bilder | **Strg+V** mit einem Screenshot speichert ihn als PNG in `bilder/` neben der Notiz und verlinkt ihn (ungespeicherte Notiz wird vorher gespeichert); im Explorer kopierte oder per Drag & Drop abgelegte Bilddateien werden an der Cursor- bzw. Ablagestelle verlinkt, andere Dateien wie bisher geöffnet. Pfade relativ zur Notiz |
 | Dateien | Seitenleiste **„Dateien“**: alle mit dem Programm erstellten, geöffneten oder gespeicherten Dateien (Ablageort wird gemerkt, Filter, Rechtsklick: Öffnen / Im Explorer anzeigen / Aus Liste entfernen). Dateien, die am gespeicherten Ort nicht mehr existieren, werden beim Start, beim Anzeigen der Liste und beim Öffnen automatisch entfernt. Außerdem: „Ordner“-Ansicht, Neu, Öffnen, Speichern, Speichern unter, Drag & Drop, Auto-Save, atomares Speichern |
+| Oberfläche | Im Stil von [coss ui](https://coss.com/ui): Werkzeugleiste mit Pfad und Speicherstatus (Gespeichert / Ungespeichert / Neu), Ansicht-Umschalter, Textebene-Auswahl, Format-Symbole, Diktat-Knopf (zeigt während der Aufnahme Laufzeit und Pegel) und Suche. Bei schmalem Fenster blendet sie die Format-Symbole aus; alles bleibt über Menü und Tastenkürzel erreichbar. Symbole: Lucide (ISC-Lizenz) als Vektorpfade in `Themes/Icons.cs` |
 | Ansicht | Seitenleiste (F9) mit Gliederung / Dateien / Ordner; **Markdown und Vorschau** (Strg+Umschalt+1), **nur Markdown** (Strg+Umschalt+2), **nur Vorschau** (Strg+Umschalt+3), F12 wechselt reihum; Vollbild (F11, Esc beendet) |
 | Themes | Minimal Light, Minimal Dark, Solarized Light/Dark, Monokai, Nord, Sepia; Umschalten live ohne Neustart; Dark/Light per Strg+Umschalt+D |
 
@@ -107,6 +108,7 @@ MarkdownEditor/
 └─ src/
    ├─ Program.cs                Einstiegspunkt, globale Fehlerbehandlung, --selftest
    ├─ MainWindow.cs             Layout, Menüs, Befehle (Routing ins aktive Feld), Dateien, Seitenleiste, Sync Markdown ↔ Vorschau
+   ├─ MainWindow.Chrome.cs      Werkzeugleiste, Seitenleisten-Tabs, Bereichsköpfe, Statusleiste, Lesebreite (coss-Stil)
    ├─ MainWindow.Dictation.cs   Diktat: Aufnahme, lokale Transkription (whisper.cpp), Einfügen am Cursor
    ├─ MainWindow.Update.cs      Update-Suche beim Start und im Hilfe-Menü
    ├─ SelfTest.cs               interner Selbsttest
@@ -122,7 +124,7 @@ MarkdownEditor/
    │  ├─ MarkdownSerializer.cs  FlowDocument → Markdown; Assemble() schreibt nur geänderte Blöcke neu
    │  └─ PreviewModel.cs        BlockInfo, InlineTag, PreviewStyle, RenderResult
    ├─ Dialogs/                  TableDialog, EmojiPicker, InputDialog, DictationSettingsDialog
-   ├─ Themes/                   Theme/ThemeCatalog, ThemeManager, Styles (XAML)
+   ├─ Themes/                   Theme/ThemeCatalog, ThemeManager (inkl. abgeleiteter coss-Tokens), Styles (XAML), Icons
    └─ Services/                 AppSettings (inkl. Dateiliste), DocumentFile, AudioRecorder,
                                 WhisperTranscriber, DictationPostProcessor, UpdateService (GitHub-Releases)
 ```

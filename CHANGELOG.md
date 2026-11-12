@@ -4,6 +4,8 @@ Alle nennenswerten Änderungen, neueste zuerst. Neue Einträge kommen unter „U
 
 ## [Unveröffentlicht]
 
+- Oberfläche im Stil von coss ui überarbeitet: Werkzeugleiste mit Pfad und Speicherstatus, Ansicht-Umschalter (Beide / Markdown / Vorschau), Textebene-Auswahl, Format-Symbolen, Diktat-Knopf mit Laufzeit und Pegel und Suche; Seitenleiste mit Tabs, Symbolen und „Neu“/„Öffnen …“; Kontextmenü mit Schrift-Symbolreihe und Gruppen; Statusleiste mit Theme-Auswahl; Einzelansichten auf Lesebreite zentriert. Minimal Light/Dark mit neutralen coss-Farben; alle Funktionen und Tastenkürzel bleiben
+
 ## [0.2.0] – 2026-10-24
 
 - Update-Suche: Der Editor prüft beim Start und über Hilfe → „Nach Updates suchen…“ auf ein neues GitHub-Release und installiert es auf Wunsch

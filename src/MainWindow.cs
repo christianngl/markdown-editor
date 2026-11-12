@@ -59,8 +59,7 @@ namespace MarkdownEditor
         readonly MarkdownEditorBox _editor = new MarkdownEditorBox();
         readonly PreviewEditorBox _preview = new PreviewEditorBox();
         readonly ListBox _sideList = new ListBox();
-        readonly Button _tabOutline, _tabFiles, _tabFolder;
-        readonly Grid _fileSearchHost = new Grid { Margin = new Thickness(8, 2, 8, 6) };
+        readonly Grid _fileSearchHost = new Grid { Margin = new Thickness(12, 0, 12, 8) };
         readonly TextBox _fileSearch = new TextBox { VerticalContentAlignment = VerticalAlignment.Center };
         readonly Border _sidebar, _previewHost;
         readonly GridSplitter _sideSplitter, _previewSplitter;
@@ -68,7 +67,7 @@ namespace MarkdownEditor
         readonly ColumnDefinition _colEditor = new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MinWidth = 200 };
         readonly ColumnDefinition _colPreview = new ColumnDefinition { Width = new GridLength(0) };
         readonly DockPanel _editorHost = new DockPanel();
-        readonly TextBlock _statusLeft = new TextBlock(), _statusRight = new TextBlock();
+        readonly TextBlock _statusLeft = new TextBlock();
         readonly Border _findBar;
         readonly TextBox _findBox = new TextBox { Width = 260, VerticalContentAlignment = VerticalAlignment.Center };
         readonly TextBlock _findInfo = new TextBlock { Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, Opacity = 0.7 };
@@ -123,6 +122,8 @@ namespace MarkdownEditor
             WindowStartupLocation = WindowStartupLocation.CenterScreen;
             if (_settings.Maximized) WindowState = WindowState.Maximized;
             SetResourceReference(BackgroundProperty, "ChromeBg");
+            FontFamily = new FontFamily("Segoe UI Variable Text, Segoe UI");
+            FontSize = 13;
             UseLayoutRounding = true;
             TextOptions.SetTextFormattingMode(this, TextFormattingMode.Display);
 
@@ -150,28 +151,38 @@ namespace MarkdownEditor
             _preview.ContextMenuOpening += delegate { _previewActive = true; BuildContextMenu(_preview.ContextMenu, true); };
             _preview.PreviewMouseWheel += OnEditorMouseWheel;
             _preview.GotKeyboardFocus += delegate { _previewActive = true; UpdateStatus(); };
-            _previewHost = new Border { Child = _preview, BorderThickness = new Thickness(1, 0, 0, 0) };
-            _previewHost.SetResourceReference(Border.BorderBrushProperty, "ChromeBorder");
+            _preview.SizeChanged += delegate { ApplyReadingWidth(); };
+            _editor.SizeChanged += delegate { ApplyReadingWidth(); };
+            var previewDock = new DockPanel();
+            _previewHeader = PaneHeader("Vorschau", "bearbeitbar");
+            previewDock.Children.Add(_previewHeader);
+            previewDock.Children.Add(_preview);
+            _previewHost = new Border { Child = previewDock, BorderThickness = new Thickness(1, 0, 0, 0) };
+            _previewHost.SetResourceReference(Border.BorderBrushProperty, "Hairline");
             _previewHost.SetResourceReference(Border.BackgroundProperty, "EditorBg");
 
             // ---------------- Suchleiste
             _findBar = BuildFindBar();
             DockPanel.SetDock(_findBar, Dock.Top);
+            _editorHeader = PaneHeader("Markdown", null);
+            _editorHost.Children.Add(_editorHeader);
             _editorHost.Children.Add(_findBar);
             _editorHost.Children.Add(_editor);
 
             // ---------------- Seitenleiste
-            _tabOutline = MakeTab("Gliederung", delegate { SetSideMode(SideMode.Outline); });
-            _tabFiles = MakeTab("Dateien", delegate { SetSideMode(SideMode.Files); });
-            _tabFolder = MakeTab("Ordner", delegate { SetSideMode(SideMode.Folder); });
-            var tabs = new UniformGrid { Rows = 1, Margin = new Thickness(6, 6, 6, 4) };
-            tabs.Children.Add(_tabOutline);
-            tabs.Children.Add(_tabFiles);
-            tabs.Children.Add(_tabFolder);
+            FrameworkElement tabs = BuildSideTabs();
 
-            var searchHint = new TextBlock { Text = "Dateien filtern …", Margin = new Thickness(7, 4, 0, 0), Opacity = 0.5, IsHitTestVisible = false };
-            searchHint.SetResourceReference(TextBlock.ForegroundProperty, "ChromeFg");
+            FrameworkElement searchIcon = Icons.Make(Icons.Search, 14);
+            searchIcon.HorizontalAlignment = HorizontalAlignment.Left;
+            searchIcon.Margin = new Thickness(10, 0, 0, 0);
+            searchIcon.IsHitTestVisible = false;
+            searchIcon.SetResourceReference(TextElement.ForegroundProperty, "MutedFg");
+            var searchHint = new TextBlock { Text = "Dateien filtern", Margin = new Thickness(32, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, IsHitTestVisible = false };
+            searchHint.SetResourceReference(TextBlock.ForegroundProperty, "MutedFg");
+            _fileSearch.Padding = new Thickness(29, 0, 8, 0);
+            System.Windows.Automation.AutomationProperties.SetName(_fileSearch, "Dateien filtern");
             _fileSearchHost.Children.Add(_fileSearch);
+            _fileSearchHost.Children.Add(searchIcon);
             _fileSearchHost.Children.Add(searchHint);
             _fileSearch.TextChanged += delegate
             {
@@ -182,14 +193,17 @@ namespace MarkdownEditor
             var sideDock = new DockPanel();
             DockPanel.SetDock(tabs, Dock.Top);
             DockPanel.SetDock(_fileSearchHost, Dock.Top);
+            FrameworkElement sideFooter = BuildSideFooter();
+            DockPanel.SetDock(sideFooter, Dock.Bottom);
             sideDock.Children.Add(tabs);
             sideDock.Children.Add(_fileSearchHost);
+            sideDock.Children.Add(sideFooter);
             sideDock.Children.Add(_sideList);
             _sideList.PreviewMouseLeftButtonUp += delegate { ActivateSideItem(); };
             _sideList.KeyDown += (s, e) => { if (e.Key == Key.Enter) { ActivateSideItem(); e.Handled = true; } };
             _sidebar = new Border { Child = sideDock, BorderThickness = new Thickness(0, 0, 1, 0) };
             _sidebar.SetResourceReference(Border.BackgroundProperty, "ChromeBg");
-            _sidebar.SetResourceReference(Border.BorderBrushProperty, "ChromeBorder");
+            _sidebar.SetResourceReference(Border.BorderBrushProperty, "Hairline");
 
             // ---------------- Layout
             var grid = new Grid();
@@ -208,9 +222,13 @@ namespace MarkdownEditor
             Place(grid, _previewHost, 4);
 
             var root = new DockPanel();
+            root.SetResourceReference(TextElement.ForegroundProperty, "ChromeFg");
             Menu menu = BuildMenu();
             DockPanel.SetDock(menu, Dock.Top);
             root.Children.Add(menu);
+            Border toolbar = BuildToolbar();
+            DockPanel.SetDock(toolbar, Dock.Top);
+            root.Children.Add(toolbar);
             Border status = BuildStatusBar();
             DockPanel.SetDock(status, Dock.Bottom);
             root.Children.Add(status);
@@ -542,6 +560,11 @@ namespace MarkdownEditor
         /// </summary>
         void AddFormatItems(ItemCollection items)
         {
+            AddFormatItems(items, true);
+        }
+
+        void AddFormatItems(ItemCollection items, bool withFont)
+        {
             string kind = CaretBlockKind();
             bool inList = kind == "bullet" || kind == "ordered" || kind == "task" || kind == "done";
 
@@ -553,7 +576,7 @@ namespace MarkdownEditor
             font.Items.Add(MI(_cCode));
             font.Items.Add(new Separator());
             font.Items.Add(MI(_cClear));
-            items.Add(font);
+            if (withFont) items.Add(font);
 
             var level = new MenuItem { Header = "Textebene" };
             level.Items.Add(Opt(_cNormal, kind == "p"));
@@ -599,14 +622,16 @@ namespace MarkdownEditor
             if (!(inPreview ? _preview.TableCellAtCaret(out row, out col) : Formatter.TableCellAt(_editor, out row, out col)))
                 row = col = 0;
 
-            var menu = new MenuItem { Header = "Tabelle" };
+            var menu = new MenuItem { Header = "Tabelle", Icon = Icons.Make(Icons.Table, 15) };
+            menu.Items.Add(new MenuItem { Header = "Zeilen", Style = (Style)FindResource("MenuLabel") });
             menu.Items.Add(TableOp("Zeile oberhalb einfügen", row > 0, t => { t.InsertRow(row); return row; }));
             menu.Items.Add(TableOp("Zeile unterhalb einfügen", true, t => { t.InsertRow(row + 1); return row + 1; }));
-            menu.Items.Add(TableOp("Zeile löschen", row > 0, t => { t.RemoveRow(row); return Math.Min(row, t.Rows.Count - 1); }));
+            menu.Items.Add(Danger(TableOp("Zeile löschen", row > 0, t => { t.RemoveRow(row); return Math.Min(row, t.Rows.Count - 1); })));
             menu.Items.Add(new Separator());
+            menu.Items.Add(new MenuItem { Header = "Spalten", Style = (Style)FindResource("MenuLabel") });
             menu.Items.Add(TableOp("Spalte links einfügen", true, t => { t.InsertColumn(col); return row; }));
             menu.Items.Add(TableOp("Spalte rechts einfügen", true, t => { t.InsertColumn(col + 1); return row; }));
-            menu.Items.Add(TableOp("Spalte löschen", true, t => { t.RemoveColumn(Math.Min(col, t.ColumnCount - 1)); return row; }));
+            menu.Items.Add(Danger(TableOp("Spalte löschen", true, t => { t.RemoveColumn(Math.Min(col, t.ColumnCount - 1)); return row; })));
             menu.Items.Add(new Separator());
             MenuItem dialog = MI(_cTable);
             dialog.Header = "Tabelle bearbeiten…";
@@ -620,6 +645,12 @@ namespace MarkdownEditor
             var c = new Cmd { Header = header, Structural = true, Run = delegate { Formatter.ModifyTable(_editor, change); FocusEditor(); } };
             MenuItem mi = MI(c);
             mi.IsEnabled = enabled;
+            return mi;
+        }
+
+        static MenuItem Danger(MenuItem mi)
+        {
+            mi.SetResourceReference(ForegroundProperty, "DangerFg");
             return mi;
         }
 
@@ -890,7 +921,10 @@ namespace MarkdownEditor
             }
 
             AddLinkItems(menu.Items, forPreview);
-            AddFormatItems(menu.Items);
+            menu.Items.Add(new MenuItem { Header = "Schrift", Style = (Style)FindResource("MenuLabel") });
+            menu.Items.Add(BuildFontRow(menu));
+            menu.Items.Add(new Separator());
+            AddFormatItems(menu.Items, false);
             menu.Items.Add(new Separator());
             menu.Items.Add(MI(_cDictate));
             menu.Items.Add(new Separator());
@@ -937,15 +971,8 @@ namespace MarkdownEditor
                 ResizeDirection = GridResizeDirection.Columns,
                 Focusable = false
             };
-            s.SetResourceReference(BackgroundProperty, "ChromeBg");
+            s.SetResourceReference(BackgroundProperty, "EditorBg");
             return s;
-        }
-
-        static Button MakeTab(string text, Action click)
-        {
-            var b = new Button { Content = text, Margin = new Thickness(0, 0, 2, 0), Padding = new Thickness(4, 4, 4, 4), BorderThickness = new Thickness(0), Focusable = false };
-            b.Click += delegate { click(); };
-            return b;
         }
 
         Border BuildFindBar()
@@ -981,25 +1008,6 @@ namespace MarkdownEditor
             bar.SetResourceReference(Border.BackgroundProperty, "ChromeBg");
             bar.SetResourceReference(Border.BorderBrushProperty, "ChromeBorder");
             return bar;
-        }
-
-        Border BuildStatusBar()
-        {
-            var dock = new DockPanel { Margin = new Thickness(12, 3, 12, 4) };
-            foreach (TextBlock tb in new[] { _statusLeft, _statusRight })
-            {
-                tb.FontSize = 12;
-                tb.SetResourceReference(TextBlock.ForegroundProperty, "ChromeFg");
-                tb.Opacity = 0.8;
-                tb.TextTrimming = TextTrimming.CharacterEllipsis;
-            }
-            DockPanel.SetDock(_statusRight, Dock.Right);
-            dock.Children.Add(_statusRight);
-            dock.Children.Add(_statusLeft);
-            var border = new Border { Child = dock, BorderThickness = new Thickness(0, 1, 0, 0) };
-            border.SetResourceReference(Border.BackgroundProperty, "ChromeBg");
-            border.SetResourceReference(Border.BorderBrushProperty, "ChromeBorder");
-            return border;
         }
 
         // ================================================================ Datei-Operationen
@@ -1241,7 +1249,8 @@ namespace MarkdownEditor
             string where = _previewActive && _previewHost.Visibility == Visibility.Visible
                 ? "Vorschau (Markdown-Zeile " + (caret.Line + 1) + ")"
                 : "Zeile " + (caret.Line + 1) + ", Spalte " + (caret.Col + 1);
-            _statusRight.Text = where + "   ·   " + _wordCount + " Wörter   ·   " + ThemeManager.Current.Name + "   ·   UTF-8";
+            UpdateStatusRight(where);
+            UpdateChrome();
         }
 
         void RefreshDerivedViews()
@@ -1279,19 +1288,15 @@ namespace MarkdownEditor
             if (visible && _colSidebar.Width.Value < 120) _colSidebar.Width = new GridLength(250);
             if (!visible) _colSidebar.Width = new GridLength(0);
             if (_sidebarItem != null) _sidebarItem.IsChecked = visible;
+            if (_sidebarToggle != null) _sidebarToggle.IsChecked = visible;
             if (visible) RefreshSidebar();
         }
 
         void SetSideMode(SideMode mode)
         {
             _sideMode = mode;
-            Button[] tabs = { _tabOutline, _tabFiles, _tabFolder };
-            for (int i = 0; i < tabs.Length; i++)
-            {
-                bool active = (int)mode == i;
-                tabs[i].SetResourceReference(BackgroundProperty, active ? "MenuHover" : "ChromeBg");
-                tabs[i].FontWeight = active ? FontWeights.SemiBold : FontWeights.Normal;
-            }
+            RadioButton[] tabs = { _sideTabOutline, _sideTabFiles, _sideTabFolder };
+            for (int i = 0; i < tabs.Length; i++) tabs[i].IsChecked = (int)mode == i;
             _fileSearchHost.Visibility = mode == SideMode.Files ? Visibility.Visible : Visibility.Collapsed;
             RefreshSidebar();
         }
@@ -1318,15 +1323,14 @@ namespace MarkdownEditor
                 if (text.Length == 0) text = "(leer)";
                 _sideList.Items.Add(new ListBoxItem
                 {
-                    Content = text,
+                    Content = OutlineRow(infos[i].Level, text),
                     Tag = new SideEntry { Line = i },
-                    Padding = new Thickness(8 + 14 * (infos[i].Level - 1), 3, 8, 3),
-                    FontWeight = infos[i].Level == 1 ? FontWeights.SemiBold : FontWeights.Normal,
+                    Padding = new Thickness(10 + 12 * (infos[i].Level - 1), 6, 10, 6),
                     ToolTip = "Zeile " + (i + 1)
                 });
             }
             if (_sideList.Items.Count == 0)
-                _sideList.Items.Add(new ListBoxItem { Content = "Keine Überschriften", IsEnabled = false, Opacity = 0.6 });
+                _sideList.Items.Add(new ListBoxItem { Content = SectionLabel("Keine Überschriften. Zeilen mit # erscheinen hier."), IsEnabled = false, Padding = new Thickness(2, 2, 6, 4) });
         }
 
         /// <summary>Alle mit dem Programm erstellten, geöffneten oder bearbeiteten Dateien (zuletzt verwendet zuerst).</summary>
@@ -1345,36 +1349,15 @@ namespace MarkdownEditor
                 .Where(f => filter.Length == 0 || f.Path.IndexOf(filter, StringComparison.CurrentCultureIgnoreCase) >= 0)
                 .ToList();
 
-            var header = new TextBlock
-            {
-                Text = files.Count == 0 && filter.Length == 0
-                    ? "Noch keine Dateien.\nAlles, was du hier öffnest oder speicherst, erscheint in dieser Liste."
-                    : "Zuletzt verwendet  ·  " + files.Count + (files.Count == 1 ? " Datei" : " Dateien"),
-                FontSize = 11,
-                Opacity = 0.65,
-                TextWrapping = TextWrapping.Wrap
-            };
-            _sideList.Items.Add(new ListBoxItem { Content = header, IsEnabled = false, Padding = new Thickness(6, 2, 6, 4) });
+            TextBlock header = SectionLabel(files.Count == 0 && filter.Length == 0
+                ? "Noch keine Dateien.\nAlles, was du hier öffnest oder speicherst, erscheint in dieser Liste."
+                : "Zuletzt verwendet  ·  " + files.Count + (files.Count == 1 ? " Datei" : " Dateien"));
+            _sideList.Items.Add(new ListBoxItem { Content = header, IsEnabled = false, Padding = new Thickness(2, 2, 6, 4) });
 
             foreach (KnownFile f in files)
             {
                 bool current = string.Equals(f.Path, _path, StringComparison.OrdinalIgnoreCase);
-                var name = new TextBlock
-                {
-                    Text = Path.GetFileName(f.Path),
-                    FontWeight = current ? FontWeights.Bold : FontWeights.SemiBold,
-                    TextTrimming = TextTrimming.CharacterEllipsis
-                };
-                var detail = new TextBlock
-                {
-                    Text = FriendlyDate(f.LastUsed) + "  ·  " + ShortFolder(Path.GetDirectoryName(f.Path)),
-                    FontSize = 11,
-                    Opacity = 0.6,
-                    TextTrimming = TextTrimming.CharacterEllipsis
-                };
-                var panel = new StackPanel();
-                panel.Children.Add(name);
-                panel.Children.Add(detail);
+                FrameworkElement panel = SideRow(Icons.File, Path.GetFileName(f.Path), ShortFolder(Path.GetDirectoryName(f.Path)) + "  ·  " + FriendlyDate(f.LastUsed), current);
 
                 string path = f.Path;
                 var menu = new ContextMenu();
@@ -1389,7 +1372,8 @@ namespace MarkdownEditor
                     Tag = new SideEntry { Path = path },
                     ToolTip = path,
                     ContextMenu = menu,
-                    Padding = new Thickness(8, 4, 8, 4)
+                    IsSelected = current,
+                    Padding = new Thickness(10, 6, 10, 6)
                 });
             }
         }
@@ -1404,19 +1388,19 @@ namespace MarkdownEditor
                 DirectoryInfo parent = Directory.GetParent(folder);
                 _sideList.Items.Add(new ListBoxItem
                 {
-                    Content = "📂  " + (Path.GetFileName(folder.TrimEnd('\\')).Length > 0 ? Path.GetFileName(folder.TrimEnd('\\')) : folder),
-                    FontWeight = FontWeights.SemiBold,
+                    Content = SectionLabel(Path.GetFileName(folder.TrimEnd('\\')).Length > 0 ? Path.GetFileName(folder.TrimEnd('\\')) : folder),
+                    Padding = new Thickness(2, 2, 6, 4),
                     ToolTip = folder,
                     IsEnabled = false
                 });
                 if (parent != null)
-                    _sideList.Items.Add(new ListBoxItem { Content = "⬆  ..", Tag = new SideEntry { Path = parent.FullName, IsFolder = true } });
+                    _sideList.Items.Add(new ListBoxItem { Content = SideRow(Icons.FolderUp, "Übergeordneter Ordner", null, false), Tag = new SideEntry { Path = parent.FullName, IsFolder = true } });
 
                 foreach (string dir in Directory.GetDirectories(folder).OrderBy(d => d, StringComparer.CurrentCultureIgnoreCase))
                 {
                     var info = new DirectoryInfo(dir);
                     if ((info.Attributes & (FileAttributes.Hidden | FileAttributes.System)) != 0) continue;
-                    _sideList.Items.Add(new ListBoxItem { Content = "📁  " + info.Name, Tag = new SideEntry { Path = dir, IsFolder = true } });
+                    _sideList.Items.Add(new ListBoxItem { Content = SideRow(Icons.Folder, info.Name, null, false), Tag = new SideEntry { Path = dir, IsFolder = true } });
                 }
                 foreach (string f in Directory.GetFiles(folder).OrderBy(f => f, StringComparer.CurrentCultureIgnoreCase))
                 {
@@ -1424,9 +1408,9 @@ namespace MarkdownEditor
                     bool current = string.Equals(f, _path, StringComparison.OrdinalIgnoreCase);
                     _sideList.Items.Add(new ListBoxItem
                     {
-                        Content = "📄  " + Path.GetFileName(f),
+                        Content = SideRow(Icons.File, Path.GetFileName(f), null, current),
                         Tag = new SideEntry { Path = f },
-                        FontWeight = current ? FontWeights.Bold : FontWeights.Normal,
+                        IsSelected = current,
                         ToolTip = f
                     });
                 }
@@ -1505,6 +1489,7 @@ namespace MarkdownEditor
             if (showPreview) RenderPreview(_editor.GetLines());
             if (!showPreview) _previewActive = false;
             else if (!showEditor) _previewActive = true;
+            ApplyReadingWidth();
             if (focus) FocusEditor();
             UpdateStatus();
         }
@@ -1520,6 +1505,12 @@ namespace MarkdownEditor
             _viewBothItem.IsChecked = _viewMode == ViewMode.Both;
             _viewMarkdownItem.IsChecked = _viewMode == ViewMode.Markdown;
             _viewPreviewItem.IsChecked = _viewMode == ViewMode.Preview;
+            if (_segBoth != null)
+            {
+                _segBoth.IsChecked = _viewMode == ViewMode.Both;
+                _segMarkdown.IsChecked = _viewMode == ViewMode.Markdown;
+                _segPreview.IsChecked = _viewMode == ViewMode.Preview;
+            }
         }
 
         void HideFindBarSilently()
@@ -1585,6 +1576,7 @@ namespace MarkdownEditor
                 BaseDir = _path != null ? Path.GetDirectoryName(_path) : null
             };
             _preview.Load(PreviewRenderer.Render(lines, style), style);
+            ApplyReadingWidth();
             _previewDirty = false;
             _previewNeedsRerender = false;
         }

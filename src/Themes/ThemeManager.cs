@@ -35,8 +35,51 @@ namespace MarkdownEditor.Themes
             r["Dim"] = theme.Dim;
             r["ScrollThumb"] = theme.ScrollThumb;
 
+            // Abgeleitete coss-Tokens: gedämpfte Flächen und Texte aus der Vordergrundfarbe,
+            // Primärfläche = Vordergrund (dunkel auf hell bzw. hell auf dunkel), Zustandsfarben fest.
+            Color fg = theme.ChromeTextColor;
+            r["MutedFg"] = Alpha(fg, 0.68);
+            r["Subtle"] = Alpha(fg, theme.IsDark ? 0.06 : 0.045);
+            r["SubtleStrong"] = Alpha(fg, theme.IsDark ? 0.10 : 0.07);
+            r["Hairline"] = Alpha(fg, theme.IsDark ? 0.08 : 0.08);
+            r["InputBorder"] = Alpha(fg, theme.IsDark ? 0.14 : 0.14);
+            r["Ring"] = Alpha(fg, 0.28);
+            r["PrimaryBg"] = theme.ChromeFg;
+            r["PrimaryFg"] = theme.EditorBg;
+            r["SurfaceBg"] = theme.MenuBg;
+            r["SuccessFg"] = Solid(theme.IsDark ? "#34D399" : "#047857");
+            r["SuccessBg"] = Alpha(Hex("#10B981"), theme.IsDark ? 0.14 : 0.10);
+            r["WarningFg"] = Solid(theme.IsDark ? "#FBBF24" : "#B45309");
+            r["WarningBg"] = Alpha(Hex("#F59E0B"), theme.IsDark ? 0.14 : 0.12);
+            r["DangerFg"] = Solid(theme.IsDark ? "#FCA5A5" : "#B91C1C");
+            r["DangerBg"] = Alpha(Hex("#EF4444"), theme.IsDark ? 0.14 : 0.10);
+            r["DangerBorder"] = Alpha(Hex("#EF4444"), 0.38);
+            r["DangerDot"] = Solid("#EF4444");
+            r["WarningDot"] = Solid("#F59E0B");
+            r["SuccessDot"] = Solid("#10B981");
+
             foreach (Window w in Application.Current.Windows)
                 ApplyTitleBar(w);
+        }
+
+        static Color Hex(string hex)
+        {
+            return (Color)ColorConverter.ConvertFromString(hex);
+        }
+
+        static Brush Solid(string hex)
+        {
+            var b = new SolidColorBrush(Hex(hex));
+            b.Freeze();
+            return b;
+        }
+
+        /// <summary>Farbe mit Deckkraft als echte ARGB-Farbe (nicht Brush.Opacity), damit sie sich in Vorlagen sauber mischt.</summary>
+        static Brush Alpha(Color c, double opacity)
+        {
+            var b = new SolidColorBrush(Color.FromArgb((byte)Math.Round(255 * opacity), c.R, c.G, c.B));
+            b.Freeze();
+            return b;
         }
 
         // ---------------------------------------------------------------- Titelleiste (Windows 10/11)

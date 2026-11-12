@@ -57,8 +57,8 @@ namespace MarkdownEditor.Themes
         //                                 Hintergrund Text       Gedimmt    Akzent     Überschr.  Link       Code-BG    Code       Zitat      Chrome     Chrome-FG  Rahmen     Menü       Hover      Auswahl
         public static readonly Theme[] All =
         {
-            new Theme("Minimal Light",   false, "#FFFFFF", "#24292F", "#A3ABB5", "#0969DA", "#1F2328", "#0969DA", "#F3F5F7", "#B35900", "#57606A", "#F6F8FA", "#24292F", "#D8DEE4", "#FFFFFF", "#E8EDF2", "#7FB2F0"),
-            new Theme("Minimal Dark",    true,  "#1E1F22", "#D5D8DE", "#5F6672", "#6CB6FF", "#F2F4F7", "#6CB6FF", "#2A2C31", "#E5C07B", "#9AA3B0", "#17181B", "#C9CDD4", "#2E3137", "#25272B", "#33363D", "#3D6FB4"),
+            new Theme("Minimal Light",   false, "#FFFFFF", "#262626", "#8F8F8F", "#737373", "#171717", "#2563EB", "#F5F5F5", "#C2410C", "#5C5C5C", "#FAFAFA", "#262626", "#EBEBEB", "#FFFFFF", "#F0F0F0", "#BFD3F7"),
+            new Theme("Minimal Dark",    true,  "#141414", "#E5E5E5", "#6B6B6B", "#8A8A8A", "#F5F5F5", "#60A5FA", "#1F1F1F", "#FBBF24", "#A3A3A3", "#101010", "#E5E5E5", "#262626", "#1C1C1C", "#2A2A2A", "#2B4A7A"),
             new Theme("Solarized Light", false, "#FDF6E3", "#586E75", "#A3AFAF", "#268BD2", "#CB4B16", "#268BD2", "#EEE8D5", "#D33682", "#657B83", "#EEE8D5", "#586E75", "#DDD6C1", "#FDF6E3", "#E4DCC5", "#93C3E8"),
             new Theme("Solarized Dark",  true,  "#002B36", "#93A1A1", "#4E6A72", "#268BD2", "#B58900", "#2AA198", "#073642", "#D33682", "#839496", "#00212B", "#93A1A1", "#0D3D4A", "#03313D", "#0E4452", "#2A6A85"),
             new Theme("Monokai",         true,  "#272822", "#F8F8F2", "#75715E", "#A6E22E", "#F92672", "#66D9EF", "#3E3D32", "#E6DB74", "#A59F85", "#1E1F1C", "#F8F8F2", "#3B3C35", "#2D2E27", "#49483E", "#75715E"),
