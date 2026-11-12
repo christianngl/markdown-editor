@@ -4,6 +4,8 @@ Alle nennenswerten Änderungen, neueste zuerst. Neue Einträge kommen unter „U
 
 ## [Unveröffentlicht]
 
+## [0.3.0] – 2026-11-12
+
 - Oberfläche im Stil von coss ui überarbeitet: Werkzeugleiste mit Pfad und Speicherstatus, Ansicht-Umschalter (Beide / Markdown / Vorschau), Textebene-Auswahl, Format-Symbolen, Diktat-Knopf mit Laufzeit und Pegel und Suche; Seitenleiste mit Tabs, Symbolen und „Neu“/„Öffnen …“; Kontextmenü mit Schrift-Symbolreihe und Gruppen; Statusleiste mit Theme-Auswahl; Einzelansichten auf Lesebreite zentriert. Minimal Light/Dark mit neutralen coss-Farben; alle Funktionen und Tastenkürzel bleiben
 
 ## [0.2.0] – 2026-10-24
